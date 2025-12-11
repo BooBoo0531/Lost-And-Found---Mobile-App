@@ -238,20 +238,6 @@
 
     </com.google.android.material.bottomappbar.BottomAppBar>
 
-    <!-- LABEL LOST -->
-    <TextView
-        android:id="@+id/tvLostLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Lost"
-        android:textColor="#D32F2F"
-        android:textStyle="bold"
-        android:visibility="invisible"
-        android:layout_marginBottom="65dp"
-        app:layout_anchor="@id/fabAdd"
-        app:layout_anchorGravity="center"/>
-
-    <!-- LABEL FOUND -->
     <TextView
         android:id="@+id/tvFoundLabel"
         android:layout_width="wrap_content"
@@ -259,25 +245,16 @@
         android:text="Found"
         android:textColor="#388E3C"
         android:textStyle="bold"
+        android:textSize="14sp"
+        android:background="@drawable/bg_label_rounded"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:elevation="10dp"
         android:visibility="invisible"
-        android:layout_marginBottom="65dp"
-        app:layout_anchor="@id/fabAdd"
-        app:layout_anchorGravity="center"/>
+        android:layout_marginEnd="90dp"
+        app:layout_anchor="@id/fabCreatePost"
+        app:layout_anchorGravity="start|center_vertical"/>
 
-    <!-- BUTTON LOST -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabLost"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:fabSize="mini"
-        android:src="@drawable/ic_search"
-        app:tint="@android:color/white"
-        app:backgroundTint="#D32F2F"
-        android:visibility="invisible"
-        app:layout_anchor="@id/fabAdd"
-        app:layout_anchorGravity="center" />
-
-    <!-- BUTTON FOUND -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabFound"
         android:layout_width="wrap_content"
@@ -287,18 +264,66 @@
         app:tint="@android:color/white"
         app:backgroundTint="#388E3C"
         android:visibility="invisible"
-        app:layout_anchor="@id/fabAdd"
-        app:layout_anchorGravity="center" />
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="90dp"
+        android:elevation="6dp"/>
 
-    <!-- BUTTON ADD -->
+    <TextView
+        android:id="@+id/tvLostLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Lost"
+        android:textColor="#D32F2F"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:background="@drawable/bg_label_rounded"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:elevation="10dp"
+        android:visibility="invisible"
+        android:layout_marginEnd="90dp"
+        app:layout_anchor="@id/fabCreatePost"
+        app:layout_anchorGravity="start|center_vertical"/>
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabAdd"
+        android:id="@+id/fabLost"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:fabSize="mini"
+        android:src="@drawable/ic_search"
+        app:tint="@android:color/white"
+        app:backgroundTint="#D32F2F"
+        android:visibility="invisible"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="90dp"
+        android:elevation="6dp"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabCreatePost"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_add"
         app:tint="@android:color/white"
         app:backgroundTint="#F07A7A"
-        app:layout_anchor="@id/bottomAppBar"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="90dp"
         app:maxImageSize="32dp"
-        android:contentDescription="Add Post"/>
+        app:elevation="6dp"
+        app:pressedTranslationZ="12dp"
+        android:contentDescription="Create Post"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabHome"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_home"
+        app:tint="@android:color/white"
+        app:backgroundTint="#F07A7A"
+        app:layout_anchor="@id/bottomAppBar"
+        app:maxImageSize="30dp"
+        android:contentDescription="Home Button"/>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

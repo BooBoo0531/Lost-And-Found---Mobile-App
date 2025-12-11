@@ -7,24 +7,23 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.graphics.Insets;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class HomeActivity extends AppCompatActivity {
 
-    // Khai báo các biến cho FAB (Nút tròn)
-    private FloatingActionButton fabAdd, fabLost, fabFound;
+    // --- CẬP NHẬT BIẾN CHO FAB MỚI ---
+    private FloatingActionButton fabCreatePost, fabHome, fabLost, fabFound; // fabAdd đổi tên thành fabCreatePost
     private TextView tvLostLabel, tvFoundLabel;
     private View mainHeader;
     private boolean isFabExpanded = false;
 
-    // Khai báo các biến cho Bottom Navigation (Menu dưới đáy)
+    // Khai báo các biến cho Bottom Navigation
     private LinearLayout btnNavHistory, btnNavMap, btnNavNotify, btnNavSetting;
 
     @Override
@@ -34,26 +33,22 @@ public class HomeActivity extends AppCompatActivity {
 
         mainHeader = findViewById(R.id.mainHeader);
 
-        // Xử lý giao diện tràn viền (EdgeToEdge)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.home), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // 1. KHỞI TẠO CÁC NÚT FAB (Đăng bài)
         initFabMenu();
-
-        // 2. KHỞI TẠO MENU DƯỚI (Điều hướng Map, History...)
         initBottomNavigation();
+
+        // Mặc định load trang tin tức
         if (savedInstanceState == null) {
-            loadFragment(new NewsFeedFragment());
+            loadFragment(new NewsFeedFragment()); // Chú ý: Tên class là NewFeedFragment (theo code cũ của bạn)
         }
     }
 
-    // --- HÀM XỬ LÝ MENU DƯỚI  ---
     private void initBottomNavigation() {
-        // Ánh xạ View
         btnNavHistory = findViewById(R.id.btnNavHistory);
         btnNavMap = findViewById(R.id.btnNavMap);
         btnNavNotify = findViewById(R.id.btnNavNotify);
@@ -63,68 +58,72 @@ public class HomeActivity extends AppCompatActivity {
         View fragmentContainer = findViewById(R.id.fragment_container);
         ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) fragmentContainer.getLayoutParams();
 
-        // 1. Xử lý nút MAP (Quan trọng nhất: ẨN HEADER ĐỎ)
+        // Nút Map: Ẩn Header
         btnNavMap.setOnClickListener(v -> {
-            // Ẩn cái đầu màu đỏ đi để Map tràn màn hình
             if (mainHeader != null) mainHeader.setVisibility(View.GONE);
-
-            // Xóa khoảng trống trên đầu (marginTop = 0) để Map tràn lên trên
             params.topMargin = 0;
             fragmentContainer.setLayoutParams(params);
-
             loadFragment(new MapFragment());
         });
 
-        // 2. Xử lý nút HISTORY (Hiện lại Header đỏ)
-        btnNavHistory.setOnClickListener(v -> {
-            // Hiện lại header đỏ
+        // Hàm phụ để reset giao diện về mặc định (Hiện header)
+        View.OnClickListener defaultNavAction = v -> {
             if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
-
             int marginInDp = 140;
             params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
             fragmentContainer.setLayoutParams(params);
+        };
+
+        btnNavHistory.setOnClickListener(v -> {
+            defaultNavAction.onClick(v);
             // loadFragment(new HistoryFragment());
         });
 
-        // 3. Xử lý nút NOTIFY (Hiện lại Header đỏ)
         btnNavNotify.setOnClickListener(v -> {
-            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
-
-            int marginInDp = 140;
-            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
-            fragmentContainer.setLayoutParams(params);
+            defaultNavAction.onClick(v);
             // loadFragment(new NotifyFragment());
         });
 
-        // 4. Xử lý nút SETTING (Hiện lại Header đỏ)
         btnNavSetting.setOnClickListener(v -> {
-            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
-
-            int marginInDp = 140;
-            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
-            fragmentContainer.setLayoutParams(params);
-             loadFragment(new Setting());
+            defaultNavAction.onClick(v);
+            loadFragment(new Setting()); // Sửa lại tên class cho đúng SettingFragment
         });
     }
 
-    // Hàm hỗ trợ thay đổi Fragment
     private void loadFragment(Fragment fragment) {
-        // R.id.fragment_container là FrameLayout trong file XML của bạn
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, fragment)
-                //.addToBackStack(null) // Cho phép bấm nút Back để quay lại màn hình trước
                 .commit();
     }
 
-    // --- HÀM XỬ LÝ FAB (CODE CŨ CỦA BẠN) ---
+    // --- LOGIC FAB MỚI (Bay dọc) ---
     private void initFabMenu() {
-        fabAdd = findViewById(R.id.fabAdd);
+        // 1. Ánh xạ nút mới
+        fabCreatePost = findViewById(R.id.fabCreatePost); // Nút + đỏ ở góc
+        fabHome = findViewById(R.id.fabHome);             // Nút ngôi nhà ở giữa
+
         fabLost = findViewById(R.id.fabLost);
         fabFound = findViewById(R.id.fabFound);
         tvLostLabel = findViewById(R.id.tvLostLabel);
         tvFoundLabel = findViewById(R.id.tvFoundLabel);
 
-        fabAdd.setOnClickListener(v -> {
+        // 2. Xử lý nút HOME (Về trang chủ)
+        fabHome.setOnClickListener(v -> {
+            if (isFabExpanded) closeFabMenu();
+
+            // Reset giao diện (Hiện header)
+            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
+            View fragmentContainer = findViewById(R.id.fragment_container);
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) fragmentContainer.getLayoutParams();
+            int marginInDp = 140;
+            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
+            fragmentContainer.setLayoutParams(params);
+
+            loadFragment(new NewsFeedFragment());
+        });
+
+        // 3. Xử lý nút Đăng bài (+)
+        fabCreatePost.setOnClickListener(v -> {
             if (isFabExpanded) closeFabMenu();
             else openFabMenu();
         });
@@ -151,29 +150,35 @@ public class HomeActivity extends AppCompatActivity {
         tvLostLabel.setVisibility(View.VISIBLE);
         tvFoundLabel.setVisibility(View.VISIBLE);
 
-        fabLost.animate().translationX(-200f).translationY(-160f);
-        tvLostLabel.animate().translationX(-200f).translationY(-210f);
+        fabFound.animate().translationX(-170f).translationY(0f);
+        tvFoundLabel.animate().translationX(-170f).translationY(0f);
 
-        fabFound.animate().translationX(200f).translationY(-160f);
-        tvFoundLabel.animate().translationX(200f).translationY(-210f);
+        fabLost.animate().translationX(0f).translationY(-170f);
+        tvLostLabel.animate().translationX(0f).translationY(-170f);
 
-        fabAdd.animate().rotation(45f);
+        // Xoay nút cộng thành dấu X
+        fabCreatePost.animate().rotation(45f);
     }
 
     private void closeFabMenu() {
         isFabExpanded = false;
 
-        fabLost.animate().translationX(0).translationY(0);
-        tvLostLabel.animate().translationX(0).translationY(0);
+        // Thu nút FOUND về (Reset Y)
+        fabFound.animate().translationX(0f).translationY(0f);
+        tvFoundLabel.animate().translationX(0f).translationY(0f);
 
-        fabFound.animate().translationX(0).translationY(0);
-        tvFoundLabel.animate().translationX(0).translationY(0);
+        // Thu nút LOST về (Reset cả X và Y)
+        fabLost.animate().translationY(0).translationX(0);
+        tvLostLabel.animate().translationY(0).translationX(0);
 
+
+        // Ẩn đi sau khi animation xong
         fabLost.animate().withEndAction(() -> fabLost.setVisibility(View.INVISIBLE));
         fabFound.animate().withEndAction(() -> fabFound.setVisibility(View.INVISIBLE));
         tvLostLabel.animate().withEndAction(() -> tvLostLabel.setVisibility(View.INVISIBLE));
         tvFoundLabel.animate().withEndAction(() -> tvFoundLabel.setVisibility(View.INVISIBLE));
 
-        fabAdd.animate().rotation(0);
+        // Xoay về dấu +
+        fabCreatePost.animate().rotation(0);
     }
 }
