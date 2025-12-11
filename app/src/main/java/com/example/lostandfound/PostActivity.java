@@ -2,13 +2,13 @@ package com.example.lostandfound;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
-import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -21,12 +21,17 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
+import java.io.IOException;
 import java.util.Calendar;
 
 public class PostActivity extends AppCompatActivity {
 
-    // Khai báo biến
+    // --- Khai báo biến ---
     private TextView tvPostTitle;
     private SwitchMaterial switchLoadImage;
     private ImageView imgPreview;
@@ -37,7 +42,11 @@ public class PostActivity extends AppCompatActivity {
     private String postType; // "LOST" hoặc "FOUND"
     private Uri selectedImageUri;
 
-    // Launcher để mở thư viện ảnh
+    // Firebase (Bỏ Retrofit đi vì bạn chưa có Backend riêng)
+    private DatabaseReference databaseReference;
+    private FirebaseAuth mAuth;
+
+    // Launcher chọn ảnh
     private final ActivityResultLauncher<String> imagePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.GetContent(),
             new ActivityResultCallback<Uri>() {
@@ -55,6 +64,10 @@ public class PostActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_post);
+
+        // Khởi tạo Firebase
+        databaseReference = FirebaseDatabase.getInstance("https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app").getReference("posts");
+        mAuth = FirebaseAuth.getInstance();
 
         initViews();
         setupLogic();
@@ -75,75 +88,103 @@ public class PostActivity extends AppCompatActivity {
     }
 
     private void setupLogic() {
-        // 1. Nhận Mode từ HomeActivity
         postType = getIntent().getStringExtra("POST_TYPE");
+        if (postType == null) postType = "LOST"; // Mặc định
 
+        // Đổi màu giao diện theo loại tin
         if ("LOST".equals(postType)) {
             tvPostTitle.setText("Đăng tin: TÌM ĐỒ BỊ MẤT");
-            tvPostTitle.setTextColor(Color.parseColor("#D32F2F")); // Màu đỏ
+            tvPostTitle.setTextColor(Color.parseColor("#D32F2F"));
             btnSubmitPost.setBackgroundColor(Color.parseColor("#D32F2F"));
             edtLocation.setHint("Bạn làm mất đồ ở đâu?");
         } else {
             tvPostTitle.setText("Đăng tin: NHẶT ĐƯỢC ĐỒ");
-            tvPostTitle.setTextColor(Color.parseColor("#388E3C")); // Màu xanh lá
+            tvPostTitle.setTextColor(Color.parseColor("#388E3C"));
             btnSubmitPost.setBackgroundColor(Color.parseColor("#388E3C"));
             edtLocation.setHint("Bạn nhặt được đồ ở đâu?");
         }
 
-        // 2. Xử lý Switch chọn Load ảnh hay không
+        // Xử lý bật/tắt chọn ảnh
         switchLoadImage.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 btnSelectImage.setVisibility(View.VISIBLE);
-                imgPreview.setVisibility(selectedImageUri != null ? View.VISIBLE : View.GONE);
+                if (selectedImageUri != null) imgPreview.setVisibility(View.VISIBLE);
             } else {
                 btnSelectImage.setVisibility(View.GONE);
                 imgPreview.setVisibility(View.GONE);
-                selectedImageUri = null; // Xóa ảnh nếu tắt switch
+                selectedImageUri = null;
             }
         });
 
-        // 3. Sự kiện chọn ảnh
         btnSelectImage.setOnClickListener(v -> imagePickerLauncher.launch("image/*"));
-
-        // 4. Sự kiện chọn Ngày/Giờ
         btnPickTime.setOnClickListener(v -> showDateTimePicker());
-
-        // 5. Sự kiện nút Map (Giả lập)
-        btnMapMarker.setOnClickListener(v -> {
-            // TODO: Mở Activity Google Map hoặc Dialog bản đồ tại đây
-            Toast.makeText(this, "Chức năng mở bản đồ để ghim vị trí", Toast.LENGTH_SHORT).show();
-        });
-
-        // 6. Sự kiện Submit
         btnSubmitPost.setOnClickListener(v -> submitPost());
     }
 
     private void showDateTimePicker() {
         Calendar calendar = Calendar.getInstance();
-        DatePickerDialog datePickerDialog = new DatePickerDialog(this,
-                (view, year, month, dayOfMonth) -> {
-                    // Sau khi chọn ngày thì chọn giờ
-                    TimePickerDialog timePickerDialog = new TimePickerDialog(this,
-                            (view1, hourOfDay, minute) -> {
-                                String time = dayOfMonth + "/" + (month + 1) + "/" + year + " " + hourOfDay + ":" + minute;
-                                btnPickTime.setText(time);
-                            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true);
-                    timePickerDialog.show();
-                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
-        datePickerDialog.show();
+        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            new TimePickerDialog(this, (view1, hourOfDay, minute) -> {
+                String strMinute = (minute < 10) ? "0" + minute : String.valueOf(minute);
+                String strHour = (hourOfDay < 10) ? "0" + hourOfDay : String.valueOf(hourOfDay);
+                String time = dayOfMonth + "/" + (month + 1) + "/" + year + " " + strHour + ":" + strMinute;
+                btnPickTime.setText(time);
+            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show();
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void submitPost() {
-        // Kiểm tra dữ liệu nhập
-        if (edtDescription.getText().toString().isEmpty() || edtContact.getText().toString().isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập mô tả và thông tin liên hệ!", Toast.LENGTH_SHORT).show();
+        // 1. Validate
+        String description = edtDescription.getText().toString().trim();
+        String contact = edtContact.getText().toString().trim();
+        String address = edtLocation.getText().toString().trim();
+        String transactionPlace = edtTransactionPlace.getText().toString().trim();
+        String timePosted = btnPickTime.getText().toString();
+
+        if (description.isEmpty() || contact.isEmpty() || address.isEmpty()) {
+            Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Ở đây bạn sẽ viết code lưu dữ liệu vào Firebase hoặc Database
-        String message = "Đang đăng bài: " + (postType.equals("LOST") ? "Mất đồ" : "Nhặt được");
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        if (!transactionPlace.isEmpty()) description += "\n(GD tại: " + transactionPlace + ")";
 
-        finish(); // Đóng Activity và quay về trang chủ
+        btnSubmitPost.setEnabled(false);
+        btnSubmitPost.setText("Đang gửi...");
+
+        // 2. Xử lý ảnh Base64
+        String imageBase64 = "";
+        if (selectedImageUri != null && switchLoadImage.isChecked()) {
+            try {
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), selectedImageUri);
+                // Giảm kích thước ảnh trước khi convert để tránh lỗi Firebase quá nặng
+                Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, 400, 400, true);
+                imageBase64 = ImageUtil.bitmapToBase64(scaledBitmap);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // 3. Chuẩn bị data
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        String userEmail = (currentUser != null) ? currentUser.getEmail() : "Ẩn danh";
+        String postId = databaseReference.push().getKey();
+
+        // **LƯU Ý QUAN TRỌNG**: Bạn phải chắc chắn file Post.java của bạn có Constructor khớp với dòng này
+        Post newPost = new Post(postId, userEmail, timePosted, description, postType, imageBase64, contact, address);
+
+        // 4. Đẩy lên Firebase
+        if (postId != null) {
+            databaseReference.child(postId).setValue(newPost)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Toast.makeText(PostActivity.this, "Đăng bài thành công!", Toast.LENGTH_SHORT).show();
+                            finish(); // Đóng màn hình này (Tự động "Lau đi")
+                        } else {
+                            Toast.makeText(PostActivity.this, "Lỗi: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            btnSubmitPost.setEnabled(true);
+                            btnSubmitPost.setText("ĐĂNG BÀI");
+                        }
+                    });
+        }
     }
 }

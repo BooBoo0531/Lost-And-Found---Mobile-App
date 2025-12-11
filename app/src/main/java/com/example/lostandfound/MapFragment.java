@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,10 +17,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 // Thư viện OSMDROID
 import org.osmdroid.config.Configuration;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
@@ -32,12 +34,16 @@ public class MapFragment extends Fragment {
     private MapView map;
     private BottomSheetBehavior<LinearLayout> bottomSheetBehavior;
     private PostAdapter postAdapter;
+    // 1. THÊM BIẾN NÀY ĐỂ QUẢN LÝ DỮ LIỆU
+    private List<Post> postList;
+
     private TextView tvProvinceTitle;
+    private FloatingActionButton btnMyLocation;
+    private TextView tvSearch;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Cấu hình User Agent để tránh bị server OSM chặn (Quan trọng)
         Context ctx = requireContext().getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         Configuration.getInstance().setUserAgentValue(ctx.getPackageName());
@@ -46,83 +52,107 @@ public class MapFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // Kết nối với layout fragment_map.xml
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
-        // 1. Cấu hình BottomSheet (Bảng thông tin trượt)
         LinearLayout bottomSheetPanel = view.findViewById(R.id.bottomSheetContainer);
         tvProvinceTitle = view.findViewById(R.id.tvProvinceTitle);
-        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetPanel);
-        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN); // Ẩn mặc định
+        btnMyLocation = view.findViewById(R.id.btnMyLocation);
+        tvSearch = view.findViewById(R.id.tvSearchMap);
 
-        // 2. Cấu hình RecyclerView (Danh sách bài đăng)
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetPanel);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        // --- CẤU HÌNH RECYCLERVIEW (ĐÃ SỬA) ---
         RecyclerView rvPosts = view.findViewById(R.id.rvPostsLocation);
         rvPosts.setLayoutManager(new LinearLayoutManager(getContext()));
-        postAdapter = new PostAdapter();
+
+        // 2. KHỞI TẠO LIST VÀ ADAPTER ĐÚNG CÁCH (Fix lỗi biên dịch)
+        postList = new ArrayList<>();
+        postAdapter = new PostAdapter(getContext(), postList);
         rvPosts.setAdapter(postAdapter);
 
-        // 3. Cấu hình Bản đồ (OSM Map)
+        // --- CẤU HÌNH BẢN ĐỒ ---
         map = view.findViewById(R.id.map);
-        map.setTileSource(TileSourceFactory.MAPNIK); // Chọn loại bản đồ
-        map.setMultiTouchControls(true); // Cho phép zoom bằng 2 ngón tay
 
-        // Đặt vị trí camera ban đầu (Zoom vào giữa Việt Nam)
-        map.getController().setZoom(6.0);
-        GeoPoint startPoint = new GeoPoint(16.0471, 108.2068); // Đà Nẵng làm tâm
+        XYTileSource cartoDbLight = new XYTileSource(
+                "CartoDbLight",
+                1, 20, 256, ".png",
+                new String[] {
+                        "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/",
+                        "https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/",
+                        "https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/"
+                },
+                "© OpenStreetMap contributors, © CARTO"
+        );
+        map.setTileSource(cartoDbLight);
+
+        map.setMultiTouchControls(true);
+        map.setBuiltInZoomControls(false);
+        map.getController().setZoom(15.0);
+
+        GeoPoint startPoint = new GeoPoint(10.8018, 106.7143);
         map.getController().setCenter(startPoint);
 
-        // --- THÊM MARKER CÁC TỈNH ---
-        addMarker(new GeoPoint(21.0285, 105.8542), "Hà Nội");
-        addMarker(new GeoPoint(10.7769, 106.7009), "TP. Hồ Chí Minh");
-        addMarker(new GeoPoint(16.0544, 108.2022), "Đà Nẵng");
-        addMarker(new GeoPoint(10.0452, 105.7469), "Cần Thơ");
+        // --- SỰ KIỆN ---
+        btnMyLocation.setOnClickListener(v -> {
+            map.getController().animateTo(startPoint);
+            map.getController().setZoom(17.0);
+            Toast.makeText(getContext(), "Đang lấy vị trí của bạn...", Toast.LENGTH_SHORT).show();
+        });
+
+        tvSearch.setOnClickListener(v -> {
+            Toast.makeText(getContext(), "Mở màn hình tìm kiếm...", Toast.LENGTH_SHORT).show();
+        });
+
+        // --- THÊM MARKER ---
+        addMarker(new GeoPoint(10.8018, 106.7143), "Ví da nâu", "HUTECH Khu E");
+        addMarker(new GeoPoint(10.8010, 106.7135), "Chìa khóa xe", "Landmark 81");
+        addMarker(new GeoPoint(10.8025, 106.7150), "Mèo anh lông ngắn", "Chung cư City Garden");
+
+        loadMockData("Gần bạn");
 
         return view;
     }
 
-    // Hàm hỗ trợ thêm Marker và xử lý sự kiện Click
-    private void addMarker(GeoPoint point, String title) {
+    private void addMarker(GeoPoint point, String itemTitle, String locationName) {
         Marker marker = new Marker(map);
         marker.setPosition(point);
-        marker.setTitle(title);
+        marker.setTitle(itemTitle);
+        marker.setSnippet(locationName);
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
 
-        // Khi bấm vào Marker
         marker.setOnMarkerClickListener((m, mapView) -> {
-            // 1. Cập nhật tiêu đề bảng
-            tvProvinceTitle.setText("Bài đăng tại: " + m.getTitle());
-
-            // 2. Load dữ liệu bài đăng giả lập (Sau này thay bằng API)
+            tvProvinceTitle.setText(m.getTitle() + " - " + m.getSnippet());
             loadMockData(m.getTitle());
-
-            // 3. Trượt bảng thông tin lên (Chế độ hiển thị 1 nửa)
+            map.getController().animateTo(m.getPosition());
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-
+            m.showInfoWindow();
             return true;
         });
         map.getOverlays().add(marker);
     }
 
-    // Hàm tạo dữ liệu giả để test
-    private void loadMockData(String location) {
+    private void loadMockData(String keyword) {
         List<Post> dummyPosts = new ArrayList<>();
 
-        // Tạo bài đăng khác nhau tùy địa điểm
-        if (location.equals("TP. Hồ Chí Minh")) {
-            dummyPosts.add(new Post("Nguyễn Văn A", "10 phút trước", "Rơi ví màu đen tại Quận 1, ai thấy liên hệ...", "LOST"));
-            dummyPosts.add(new Post("Trần Thị B", "2 giờ trước", "Nhặt được thẻ sinh viên HUTECH", "FOUND"));
-            dummyPosts.add(new Post("Lê C", "5 giờ trước", "Tìm mèo lạc màu vàng...", "LOST"));
-        } else if (location.equals("Hà Nội")) {
-            dummyPosts.add(new Post("Phạm Văn D", "1 ngày trước", "Rơi giấy tờ xe tại Cầu Giấy", "LOST"));
-            dummyPosts.add(new Post("Hoàng E", "3 ngày trước", "Nhặt được chìa khoá xe Honda", "FOUND"));
+        if (keyword.contains("Ví")) {
+            dummyPosts.add(new Post("id1", "Nguyễn Văn A", "10 phút trước", "Mình đánh rơi ví da màu nâu tại sảnh E...", "LOST", null, "090123456", "HUTECH Khu E"));
+        } else if (keyword.contains("Chìa")) {
+            dummyPosts.add(new Post("id2", "Trần Thị B", "2 giờ trước", "Nhặt được chìa khoá xe Honda Vision...", "FOUND", null, "0909888777", "Landmark 81"));
+        } else if (keyword.contains("Mèo")) {
+            dummyPosts.add(new Post("id3", "Lê C", "1 ngày trước", "Tìm mèo lạc, có hậu tạ...", "LOST", null, "0912345678", "Chung cư City Garden"));
         } else {
-            dummyPosts.add(new Post("User ẩn danh", "Vừa xong", "Có ai thấy chó Bull Pháp lạc không ạ?", "LOST"));
+            dummyPosts.add(new Post("id4", "User 1", "Vừa xong", "Rơi tai nghe AirPods...", "LOST", null, "0123", "Gần đây"));
+            dummyPosts.add(new Post("id5", "User 2", "15p trước", "Nhặt được thẻ gửi xe...", "FOUND", null, "0456", "Gần đây"));
+            dummyPosts.add(new Post("id6", "User 3", "1h trước", "Tìm chó lạc...", "LOST", null, "0789", "Gần đây"));
         }
 
-        postAdapter.setPostList(dummyPosts);
+        // 3. CẬP NHẬT DỮ LIỆU ĐÚNG CÁCH (Thay vì gọi setPostList)
+        postList.clear();              // Xóa dữ liệu cũ
+        postList.addAll(dummyPosts);   // Thêm dữ liệu mới
+        postAdapter.notifyDataSetChanged(); // Báo adapter vẽ lại
     }
 
-    // Quản lý vòng đời map (để không bị lỗi bộ nhớ)
     @Override
     public void onResume() {
         super.onResume();

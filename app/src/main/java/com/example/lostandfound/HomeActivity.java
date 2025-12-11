@@ -3,6 +3,7 @@ package com.example.lostandfound;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -20,6 +21,7 @@ public class HomeActivity extends AppCompatActivity {
     // Khai báo các biến cho FAB (Nút tròn)
     private FloatingActionButton fabAdd, fabLost, fabFound;
     private TextView tvLostLabel, tvFoundLabel;
+    private View mainHeader;
     private boolean isFabExpanded = false;
 
     // Khai báo các biến cho Bottom Navigation (Menu dưới đáy)
@@ -28,8 +30,9 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_home);
+
+        mainHeader = findViewById(R.id.mainHeader);
 
         // Xử lý giao diện tràn viền (EdgeToEdge)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.home), (v, insets) -> {
@@ -48,26 +51,60 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
-    // --- HÀM XỬ LÝ MENU DƯỚI (MỚI THÊM) ---
+    // --- HÀM XỬ LÝ MENU DƯỚI  ---
     private void initBottomNavigation() {
-        // Ánh xạ View từ layout XML
+        // Ánh xạ View
         btnNavHistory = findViewById(R.id.btnNavHistory);
         btnNavMap = findViewById(R.id.btnNavMap);
         btnNavNotify = findViewById(R.id.btnNavNotify);
         btnNavSetting = findViewById(R.id.btnNavSetting);
+        mainHeader = findViewById(R.id.mainHeader);
 
-        // Xử lý sự kiện bấm nút Map
+        View fragmentContainer = findViewById(R.id.fragment_container);
+        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) fragmentContainer.getLayoutParams();
+
+        // 1. Xử lý nút MAP (Quan trọng nhất: ẨN HEADER ĐỎ)
         btnNavMap.setOnClickListener(v -> {
-            // Gọi MapFragment hiện lên màn hình
+            // Ẩn cái đầu màu đỏ đi để Map tràn màn hình
+            if (mainHeader != null) mainHeader.setVisibility(View.GONE);
+
+            // Xóa khoảng trống trên đầu (marginTop = 0) để Map tràn lên trên
+            params.topMargin = 0;
+            fragmentContainer.setLayoutParams(params);
+
             loadFragment(new MapFragment());
         });
 
-        // Xử lý sự kiện bấm nút History (Ví dụ mẫu, bạn có thể tạo Fragment sau)
+        // 2. Xử lý nút HISTORY (Hiện lại Header đỏ)
         btnNavHistory.setOnClickListener(v -> {
-            // loadFragment(new HistoryFragment()); // Bỏ comment khi bạn đã tạo HistoryFragment
+            // Hiện lại header đỏ
+            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
+
+            int marginInDp = 140;
+            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
+            fragmentContainer.setLayoutParams(params);
+            // loadFragment(new HistoryFragment());
         });
 
-        // Tương tự cho Notify và Setting...
+        // 3. Xử lý nút NOTIFY (Hiện lại Header đỏ)
+        btnNavNotify.setOnClickListener(v -> {
+            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
+
+            int marginInDp = 140;
+            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
+            fragmentContainer.setLayoutParams(params);
+            // loadFragment(new NotifyFragment());
+        });
+
+        // 4. Xử lý nút SETTING (Hiện lại Header đỏ)
+        btnNavSetting.setOnClickListener(v -> {
+            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
+
+            int marginInDp = 140;
+            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
+            fragmentContainer.setLayoutParams(params);
+             loadFragment(new Setting());
+        });
     }
 
     // Hàm hỗ trợ thay đổi Fragment
@@ -75,7 +112,7 @@ public class HomeActivity extends AppCompatActivity {
         // R.id.fragment_container là FrameLayout trong file XML của bạn
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, fragment)
-                .addToBackStack(null) // Cho phép bấm nút Back để quay lại màn hình trước
+                //.addToBackStack(null) // Cho phép bấm nút Back để quay lại màn hình trước
                 .commit();
     }
 

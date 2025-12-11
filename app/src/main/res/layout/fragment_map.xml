@@ -2,6 +2,7 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -12,21 +13,64 @@
         android:clickable="true"
         android:focusable="true" />
 
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_margin="16dp"
+        android:layout_marginTop="40dp"
+        app:cardCornerRadius="25dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@android:color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_search"
+                app:tint="#757575"/>
+
+            <TextView
+                android:id="@+id/tvSearchMap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Tìm kiếm đồ vật thất lạc..."
+                android:textColor="#757575"
+                android:textSize="16sp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnMyLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="180dp"
+        android:src="@android:drawable/ic_menu_mylocation"
+        app:backgroundTint="@android:color/white"
+        app:fabSize="normal" />
     <LinearLayout
         android:id="@+id/bottomSheetContainer"
         android:layout_width="match_parent"
-        android:layout_height="550dp"
+        android:layout_height="450dp"
         android:orientation="vertical"
         android:background="@drawable/bg_bottom_sheet_rounded"
         android:elevation="16dp"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
-        app:behavior_hideable="true"
-        app:behavior_peekHeight="0dp">
+        app:behavior_hideable="false"
+        app:behavior_peekHeight="120dp">
 
         <View
-            android:layout_width="50dp"
+            android:layout_width="40dp"
             android:layout_height="4dp"
-            android:background="#CCCCCC"
+            android:background="#E0E0E0"
             android:layout_gravity="center"
             android:layout_marginTop="12dp"
             android:layout_marginBottom="12dp"/>
@@ -35,7 +79,7 @@
             android:id="@+id/tvProvinceTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Chọn địa điểm"
+            android:text="Tin mới quanh đây"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"
@@ -46,7 +90,6 @@
             android:id="@+id/rvPostsLocation"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="20dp"
             android:clipToPadding="false"/>
 
     </LinearLayout>
