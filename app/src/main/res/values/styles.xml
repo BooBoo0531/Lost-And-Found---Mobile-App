@@ -1,0 +1,17 @@
+<resources>
+    <style name="ExpandedType" parent="TextAppearance.Design.CollapsingToolbar.Expanded">
+        <item name="android:textSize">30sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">#333333</item>
+        <item name="fontFamily">sans-serif-medium</item> <item name="android:shadowColor">#20000000</item> <item name="android:shadowDx">2</item>             <item name="android:shadowDy">2</item>             <item name="android:shadowRadius">4</item>         </style>
+
+    <style name="CollapsedType" parent="TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textSize">20sp</item> <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="fontFamily">sans-serif-medium</item>
+
+        <item name="android:shadowColor">#40000000</item> <item name="android:shadowDx">1</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">2</item>
+    </style>
+</resources>

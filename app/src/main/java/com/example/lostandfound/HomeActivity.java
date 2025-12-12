@@ -1,51 +1,93 @@
 package com.example.lostandfound;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.graphics.Insets;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class HomeActivity extends AppCompatActivity {
 
-    // --- CẬP NHẬT BIẾN CHO FAB MỚI ---
-    private FloatingActionButton fabCreatePost, fabHome, fabLost, fabFound; // fabAdd đổi tên thành fabCreatePost
+    // --- BIẾN FAB ---
+    private FloatingActionButton fabCreatePost, fabHome, fabLost, fabFound;
     private TextView tvLostLabel, tvFoundLabel;
-    private View mainHeader;
     private boolean isFabExpanded = false;
 
-    // Khai báo các biến cho Bottom Navigation
+    // --- BIẾN ĐIỀU HƯỚNG ---
     private LinearLayout btnNavHistory, btnNavMap, btnNavNotify, btnNavSetting;
+
+    // --- BIẾN HEADER ---
+    private AppBarLayout appBarLayout;
+    private View btnSearchSmall; // Biến cho nút tìm kiếm nhỏ
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        mainHeader = findViewById(R.id.mainHeader);
+        // 1. Ánh xạ các thành phần Header
+        appBarLayout = findViewById(R.id.appBarLayout);
+        btnSearchSmall = findViewById(R.id.btnSearchSmall);
 
+        // Xử lý EdgeToEdge (Tràn viền)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.home), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
+        // 2. Logic ẩn/hiện icon tìm kiếm khi lướt (QUAN TRỌNG)
+        setupCollapsingHeader();
+
+        // 3. Khởi tạo các chức năng khác
         initFabMenu();
         initBottomNavigation();
 
         // Mặc định load trang tin tức
         if (savedInstanceState == null) {
-            loadFragment(new NewsFeedFragment()); // Chú ý: Tên class là NewFeedFragment (theo code cũ của bạn)
+            loadFragment(new NewsFeedFragment());
         }
+    }
+
+    // --- HÀM XỬ LÝ HEADER CO GIÃN ---
+    private void setupCollapsingHeader() {
+        // Sự kiện click nút tìm kiếm nhỏ
+        btnSearchSmall.setOnClickListener(v -> {
+            Toast.makeText(this, "Đang mở tìm kiếm...", Toast.LENGTH_SHORT).show();
+        });
+
+        // Lắng nghe sự kiện cuộn để ẩn/hiện nút
+        appBarLayout.addOnOffsetChangedListener((appBar, verticalOffset) -> {
+            // Tính tỷ lệ cuộn (0.0 đến 1.0)
+            float percentage = (float) Math.abs(verticalOffset) / appBar.getTotalScrollRange();
+
+            // Nếu cuộn lên quá 75% -> HIỆN NÚT NHỎ
+            if (percentage > 0.75f) {
+                if (btnSearchSmall.getVisibility() != View.VISIBLE) {
+                    btnSearchSmall.setVisibility(View.VISIBLE);
+                    btnSearchSmall.animate().alpha(1f).setDuration(200).start(); // Hiệu ứng hiện dần
+                }
+            }
+            // Nếu đang mở rộng -> ẨN NÚT NHỎ
+            else {
+                if (btnSearchSmall.getVisibility() == View.VISIBLE) {
+                    btnSearchSmall.setVisibility(View.INVISIBLE);
+                }
+            }
+        });
     }
 
     private void initBottomNavigation() {
@@ -53,40 +95,30 @@ public class HomeActivity extends AppCompatActivity {
         btnNavMap = findViewById(R.id.btnNavMap);
         btnNavNotify = findViewById(R.id.btnNavNotify);
         btnNavSetting = findViewById(R.id.btnNavSetting);
-        mainHeader = findViewById(R.id.mainHeader);
 
-        View fragmentContainer = findViewById(R.id.fragment_container);
-        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) fragmentContainer.getLayoutParams();
-
-        // Nút Map: Ẩn Header
+        // Nút Map: Thu gọn Header
         btnNavMap.setOnClickListener(v -> {
-            if (mainHeader != null) mainHeader.setVisibility(View.GONE);
-            params.topMargin = 0;
-            fragmentContainer.setLayoutParams(params);
+            if (appBarLayout != null) appBarLayout.setExpanded(false, true);
             loadFragment(new MapFragment());
         });
 
-        // Hàm phụ để reset giao diện về mặc định (Hiện header)
-        View.OnClickListener defaultNavAction = v -> {
-            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
-            int marginInDp = 140;
-            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
-            fragmentContainer.setLayoutParams(params);
-        };
+        // Nút Setting: Thu gọn Header
+        btnNavSetting.setOnClickListener(v -> {
+            if (appBarLayout != null) appBarLayout.setExpanded(false, true);
+            // Lưu ý: Đảm bảo class là SettingFragment (nếu bạn đặt tên là Setting thì sửa lại ở đây)
+            loadFragment(new Setting());
+        });
 
+        // Nút History: Mở rộng Header
         btnNavHistory.setOnClickListener(v -> {
-            defaultNavAction.onClick(v);
+            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             // loadFragment(new HistoryFragment());
         });
 
+        // Nút Notify: Mở rộng Header
         btnNavNotify.setOnClickListener(v -> {
-            defaultNavAction.onClick(v);
+            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             // loadFragment(new NotifyFragment());
-        });
-
-        btnNavSetting.setOnClickListener(v -> {
-            defaultNavAction.onClick(v);
-            loadFragment(new Setting()); // Sửa lại tên class cho đúng SettingFragment
         });
     }
 
@@ -96,33 +128,22 @@ public class HomeActivity extends AppCompatActivity {
                 .commit();
     }
 
-    // --- LOGIC FAB MỚI (Bay dọc) ---
+    // --- LOGIC FAB (Hiệu ứng kim cương + Chữ L) ---
     private void initFabMenu() {
-        // 1. Ánh xạ nút mới
-        fabCreatePost = findViewById(R.id.fabCreatePost); // Nút + đỏ ở góc
-        fabHome = findViewById(R.id.fabHome);             // Nút ngôi nhà ở giữa
-
+        fabCreatePost = findViewById(R.id.fabCreatePost);
+        fabHome = findViewById(R.id.fabHome);
         fabLost = findViewById(R.id.fabLost);
         fabFound = findViewById(R.id.fabFound);
         tvLostLabel = findViewById(R.id.tvLostLabel);
         tvFoundLabel = findViewById(R.id.tvFoundLabel);
 
-        // 2. Xử lý nút HOME (Về trang chủ)
+        // Nút Home: Về trang chủ + Mở rộng Header
         fabHome.setOnClickListener(v -> {
             if (isFabExpanded) closeFabMenu();
-
-            // Reset giao diện (Hiện header)
-            if (mainHeader != null) mainHeader.setVisibility(View.VISIBLE);
-            View fragmentContainer = findViewById(R.id.fragment_container);
-            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) fragmentContainer.getLayoutParams();
-            int marginInDp = 140;
-            params.topMargin = (int) (marginInDp * getResources().getDisplayMetrics().density);
-            fragmentContainer.setLayoutParams(params);
-
+            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             loadFragment(new NewsFeedFragment());
         });
 
-        // 3. Xử lý nút Đăng bài (+)
         fabCreatePost.setOnClickListener(v -> {
             if (isFabExpanded) closeFabMenu();
             else openFabMenu();
@@ -150,9 +171,9 @@ public class HomeActivity extends AppCompatActivity {
         tvLostLabel.setVisibility(View.VISIBLE);
         tvFoundLabel.setVisibility(View.VISIBLE);
 
+        // Animation chữ L
         fabFound.animate().translationX(-170f).translationY(0f);
         tvFoundLabel.animate().translationX(-170f).translationY(0f);
-
         fabLost.animate().translationX(0f).translationY(-170f);
         tvLostLabel.animate().translationX(0f).translationY(-170f);
 
@@ -163,22 +184,20 @@ public class HomeActivity extends AppCompatActivity {
     private void closeFabMenu() {
         isFabExpanded = false;
 
-        // Thu nút FOUND về (Reset Y)
         fabFound.animate().translationX(0f).translationY(0f);
         tvFoundLabel.animate().translationX(0f).translationY(0f);
+        fabLost.animate().translationX(0f).translationY(0f);
+        tvLostLabel.animate().translationX(0f).translationY(0f);
 
-        // Thu nút LOST về (Reset cả X và Y)
-        fabLost.animate().translationY(0).translationX(0);
-        tvLostLabel.animate().translationY(0).translationX(0);
-
-
-        // Ẩn đi sau khi animation xong
         fabLost.animate().withEndAction(() -> fabLost.setVisibility(View.INVISIBLE));
         fabFound.animate().withEndAction(() -> fabFound.setVisibility(View.INVISIBLE));
         tvLostLabel.animate().withEndAction(() -> tvLostLabel.setVisibility(View.INVISIBLE));
         tvFoundLabel.animate().withEndAction(() -> tvFoundLabel.setVisibility(View.INVISIBLE));
 
-        // Xoay về dấu +
-        fabCreatePost.animate().rotation(0);
+        // --- KHÔI PHỤC NÚT TRÒN ---
+        fabCreatePost.setImageResource(R.drawable.ic_add); // Đổi lại dấu +
+        fabCreatePost.setBackgroundResource(0); // Xóa hình thoi
+        fabCreatePost.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F07A7A"))); // Set lại màu hồng
+        fabCreatePost.setRotation(0f);
     }
 }
