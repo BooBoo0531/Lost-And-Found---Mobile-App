@@ -282,6 +282,7 @@ public class PostActivity extends AppCompatActivity {
 
         FirebaseUser currentUser = mAuth.getCurrentUser();
         String userEmail = (currentUser != null) ? currentUser.getEmail() : "Ẩn danh";
+        String userId = (currentUser != null) ? currentUser.getUid() : "";
         String postId = databaseReference.push().getKey();
 
         if (postId == null) {
@@ -291,7 +292,7 @@ public class PostActivity extends AppCompatActivity {
             return;
         }
 
-        Post newPost = new Post(postId, userEmail, timePosted, description, postType, imageBase64, contact, address);
+        Post newPost = new Post(postId,userId, userEmail, timePosted, description, postType, imageBase64, contact, address);
 
         databaseReference.child(postId).setValue(newPost)
                 .addOnCompleteListener(task -> {

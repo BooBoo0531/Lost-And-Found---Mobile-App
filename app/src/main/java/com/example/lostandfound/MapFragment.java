@@ -136,15 +136,16 @@ public class MapFragment extends Fragment {
         List<Post> dummyPosts = new ArrayList<>();
 
         if (keyword.contains("Ví")) {
-            dummyPosts.add(new Post("id1", "Nguyễn Văn A", "10 phút trước", "Mình đánh rơi ví da màu nâu tại sảnh E...", "LOST", null, "090123456", "HUTECH Khu E"));
+            // Insert empty userEmail "" to match Post constructor signature (9 params)
+            dummyPosts.add(new Post("id1", "Nguyễn Văn A", "", "10 phút trước", "Mình đánh rơi ví da màu nâu tại sảnh E...", "LOST", null, "090123456", "HUTECH Khu E"));
         } else if (keyword.contains("Chìa")) {
-            dummyPosts.add(new Post("id2", "Trần Thị B", "2 giờ trước", "Nhặt được chìa khoá xe Honda Vision...", "FOUND", null, "0909888777", "Landmark 81"));
+            dummyPosts.add(new Post("id2", "Trần Thị B", "", "2 giờ trước", "Nhặt được chìa khoá xe Honda Vision...", "FOUND", null, "0909888777", "Landmark 81"));
         } else if (keyword.contains("Mèo")) {
-            dummyPosts.add(new Post("id3", "Lê C", "1 ngày trước", "Tìm mèo lạc, có hậu tạ...", "LOST", null, "0912345678", "Chung cư City Garden"));
+            dummyPosts.add(new Post("id3", "Lê C", "", "1 ngày trước", "Tìm mèo lạc, có hậu tạ...", "LOST", null, "0912345678", "Chung cư City Garden"));
         } else {
-            dummyPosts.add(new Post("id4", "User 1", "Vừa xong", "Rơi tai nghe AirPods...", "LOST", null, "0123", "Gần đây"));
-            dummyPosts.add(new Post("id5", "User 2", "15p trước", "Nhặt được thẻ gửi xe...", "FOUND", null, "0456", "Gần đây"));
-            dummyPosts.add(new Post("id6", "User 3", "1h trước", "Tìm chó lạc...", "LOST", null, "0789", "Gần đây"));
+            dummyPosts.add(new Post("id4", "User 1", "", "Vừa xong", "Rơi tai nghe AirPods...", "LOST", null, "0123", "Gần đây"));
+            dummyPosts.add(new Post("id5", "User 2", "", "15p trước", "Nhặt được thẻ gửi xe...", "FOUND", null, "0456", "Gần đây"));
+            dummyPosts.add(new Post("id6", "User 3", "", "1h trước", "Tìm chó lạc...", "LOST", null, "0789", "Gần đây"));
         }
 
         // 3. CẬP NHẬT DỮ LIỆU ĐÚNG CÁCH (Thay vì gọi setPostList)

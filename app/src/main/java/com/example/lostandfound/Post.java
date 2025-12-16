@@ -1,52 +1,57 @@
 package com.example.lostandfound;
 
 public class Post {
-    private String id;          // ID riêng của bài post (do Firebase tạo)
-    private String userName;
-    private String timePosted;
-    private String content;
-    private String status;      // "LOST" hoặc "FOUND"
-    private String imageBase64; // Lưu ảnh dưới dạng chuỗi ký tự dài
-    private String contactPhone;// Số điện thoại liên hệ
-    private String address;     // Địa điểm bị mất/nhặt được
+    public String id;
+    public String userId;
+    public String userEmail;
+    public String timePosted;
+    public String description;
+    public String postType;
+    public String imageBase64;
+    public String contact;
+    public String address;
 
-    // 1. BẮT BUỘC: Constructor rỗng cho Firebase
-    public Post() {
-    }
+    // No-arg constructor required by Firebase
+    public Post() { }
 
-    // 2. Constructor đầy đủ để mình dùng lúc đăng bài
-    public Post(String id, String userName, String timePosted, String content, String status, String imageBase64, String contactPhone, String address) {
+    // Constructor matching: (postId, userId, userEmail, timePosted, description, postType, imageBase64, contact, address)
+    public Post(String id, String userId, String userEmail, String timePosted,
+                String description, String postType, String imageBase64,
+                String contact, String address) {
         this.id = id;
-        this.userName = userName;
+        this.userId = userId;
+        this.userEmail = userEmail;
         this.timePosted = timePosted;
-        this.content = content;
-        this.status = status;
+        this.description = description;
+        this.postType = postType;
         this.imageBase64 = imageBase64;
-        this.contactPhone = contactPhone;
+        this.contact = contact;
         this.address = address;
     }
 
-    // 3. Getter và Setter
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public String getUserName() { return userName; }
-    public void setUserName(String userName) { this.userName = userName; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
 
     public String getTimePosted() { return timePosted; }
     public void setTimePosted(String timePosted) { this.timePosted = timePosted; }
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getPostType() { return postType; }
+    public void setPostType(String postType) { this.postType = postType; }
 
     public String getImageBase64() { return imageBase64; }
     public void setImageBase64(String imageBase64) { this.imageBase64 = imageBase64; }
 
-    public String getContactPhone() { return contactPhone; }
-    public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+    public String getContact() { return contact; }
+    public void setContact(String contact) { this.contact = contact; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }

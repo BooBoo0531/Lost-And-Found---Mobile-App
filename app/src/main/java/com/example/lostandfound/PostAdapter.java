@@ -13,6 +13,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.util.List;
 
 public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder> {
@@ -20,17 +26,23 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     private Context context;
     private List<Post> postList;
 
-    // --- SỬA LỖI 1: Thêm Constructor nhận tham số để khớp với Fragment ---
+    // Thêm biến tham chiếu đến bảng Users
+    private DatabaseReference usersRef;
+
     public PostAdapter(Context context, List<Post> postList) {
         this.context = context;
         this.postList = postList;
+        // Khởi tạo kết nối đến bảng users để tra cứu avatar
+        try {
+            usersRef = FirebaseDatabase.getInstance("https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app").getReference("users");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @NonNull
     @Override
     public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // Lưu ý: Đổi lại thành 'item_post' cho đẹp (file XML CardView mình gửi bài trước)
-        // Nếu bạn muốn dùng 'item_post_map' thì phải chắc chắn file đó tồn tại
         View view = LayoutInflater.from(context).inflate(R.layout.item_post_map, parent, false);
         return new PostViewHolder(view);
     }
@@ -39,42 +51,73 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     public void onBindViewHolder(@NonNull PostViewHolder holder, int position) {
         Post post = postList.get(position);
 
-        // Gán dữ liệu chữ
-        holder.tvUserName.setText(post.getUserName());
+        // 1. Gán thông tin chữ
+        holder.tvUserName.setText(post.getUserEmail());
         holder.tvTime.setText(post.getTimePosted());
-        holder.tvContent.setText(post.getContent());
-        holder.tvStatus.setText(post.getStatus());
+        holder.tvContent.setText(post.getDescription());
 
-        // Xử lý màu sắc
-        if ("LOST".equalsIgnoreCase(post.getStatus())) {
-            holder.tvStatus.setTextColor(0xFFD32F2F); // Đỏ
+        // 2. Xử lý LOST/FOUND (Giữ nguyên)
+        if ("LOST".equalsIgnoreCase(post.getPostType())) {
+            holder.tvStatus.setText("LOST");
+            holder.tvStatus.setTextColor(0xFFD32F2F);
             holder.tvStatus.setBackgroundColor(0xFFFFEBEE);
         } else {
-            holder.tvStatus.setTextColor(0xFF388E3C); // Xanh lá
+            holder.tvStatus.setText("FOUND");
+            holder.tvStatus.setTextColor(0xFF388E3C);
             holder.tvStatus.setBackgroundColor(0xFFE8F5E9);
         }
 
-        // --- SỬA LỖI 2: Thêm code hiển thị ảnh Base64 ---
+        // 3. Ảnh bài đăng (Giữ nguyên)
         if (post.getImageBase64() != null && !post.getImageBase64().isEmpty()) {
             holder.imgPostImage.setVisibility(View.VISIBLE);
             try {
                 Bitmap bitmap = ImageUtil.base64ToBitmap(post.getImageBase64());
                 holder.imgPostImage.setImageBitmap(bitmap);
             } catch (Exception e) {
-                e.printStackTrace();
+                holder.imgPostImage.setVisibility(View.GONE);
             }
         } else {
             holder.imgPostImage.setVisibility(View.GONE);
         }
 
-        // Sự kiện gửi bình luận (Giữ nguyên của bạn)
-        holder.btnSendComment.setOnClickListener(v -> {
-            String comment = holder.etComment.getText().toString();
-            if (!comment.isEmpty()) {
-                Toast.makeText(context, "Đã gửi: " + comment, Toast.LENGTH_SHORT).show();
-                holder.etComment.setText("");
-            }
-        });
+        // --- 4. XỬ LÝ AVATAR (CODE ĐÃ NÂNG CẤP) ---
+
+        // A. Đặt trạng thái mặc định (Icon xám)
+        holder.imgAvatar.setImageResource(R.drawable.ic_notification);
+        holder.imgAvatar.setPadding(15, 15, 15, 15); // Padding để icon nhỏ lại xíu
+        holder.imgAvatar.setColorFilter(0xFF888888); // Tô màu xám thủ công bằng code
+
+        String userId = post.getUserId();
+
+        // Log kiểm tra (Xem Logcat để biết bài này có ID không)
+        android.util.Log.d("CHECK_AVATAR", "Email: " + post.getUserEmail() + " | ID: " + userId);
+
+        if (userId != null && !userId.isEmpty() && usersRef != null) {
+            usersRef.child(userId).child("avatarUrl").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        String avatarBase64 = snapshot.getValue(String.class);
+                        if (avatarBase64 != null && !avatarBase64.isEmpty()) {
+                            try {
+                                Bitmap avatarBmp = ImageUtil.base64ToBitmap(avatarBase64);
+                                if (avatarBmp != null) {
+                                    // B. Có ảnh -> XÓA MÀU XÁM, XÓA PADDING
+                                    holder.imgAvatar.clearColorFilter(); // Quan trọng: Xóa lớp màu xám
+                                    holder.imgAvatar.setImageTintList(null); // Xóa tint nếu có
+
+                                    holder.imgAvatar.setPadding(0, 0, 0, 0); // Full khung
+                                    holder.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                                    holder.imgAvatar.setImageBitmap(avatarBmp);
+                                }
+                            } catch (Exception e) { e.printStackTrace(); }
+                        }
+                    }
+                }
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {}
+            });
+        }
     }
 
     @Override
@@ -85,25 +128,21 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     public static class PostViewHolder extends RecyclerView.ViewHolder {
         TextView tvUserName, tvTime, tvContent, tvStatus;
         EditText etComment;
-        ImageView btnSendComment;
-        ImageView imgPostImage; // Thêm biến hiển thị ảnh bài đăng
+        ImageView btnSendComment, imgPostImage;
+        ImageView imgAvatar; // Ảnh đại diện nhỏ
 
         public PostViewHolder(@NonNull View itemView) {
             super(itemView);
-            // Ánh xạ ID (Phải khớp với file item_post.xml)
-            tvUserName = itemView.findViewById(R.id.tvUserName); // Khớp
-            tvTime = itemView.findViewById(R.id.tvPostTime);     // Khớp
-            tvContent = itemView.findViewById(R.id.tvContent);   // Khớp
-            tvStatus = itemView.findViewById(R.id.tvStatus);     // Khớp
-            etComment = itemView.findViewById(R.id.etComment);   // Khớp
-            btnSendComment = itemView.findViewById(R.id.btnSendComment); // Khớp
-            // Nếu dùng layout item_post mình gửi bài trước thì chưa có nút comment
-            // Bạn có thể xóa dòng này nếu chưa thêm vào XML
-            // etComment = itemView.findViewById(R.id.etComment);
-            // btnSendComment = itemView.findViewById(R.id.btnSendComment);
-
-            // Quan trọng: Ánh xạ ảnh
+            tvUserName = itemView.findViewById(R.id.tvUserName);
+            tvTime = itemView.findViewById(R.id.tvPostTime);
+            tvContent = itemView.findViewById(R.id.tvContent);
+            tvStatus = itemView.findViewById(R.id.tvStatus);
+            etComment = itemView.findViewById(R.id.etComment);
+            btnSendComment = itemView.findViewById(R.id.btnSendComment);
             imgPostImage = itemView.findViewById(R.id.imgPostImage);
+
+            // Ánh xạ avatar (đảm bảo ID này đúng trong item_post_map.xml)
+            imgAvatar = itemView.findViewById(R.id.imgAvatarPost);
         }
     }
 }
