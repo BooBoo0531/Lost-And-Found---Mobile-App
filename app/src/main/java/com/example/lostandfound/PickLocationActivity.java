@@ -40,8 +40,7 @@ public class PickLocationActivity extends AppCompatActivity
 
     // Tilemap key: dùng cho hiển thị bản đồ
     private static final String STYLE_URL =
-            "https://maps.vietmap.vn/api/maps/light/styles.json?apikey=\n" +
-                    "f77a52c999a3400b244172210d4a0ebabb2f0c43926e1d45";
+            "https://maps.vietmap.vn/api/maps/light/styles.json?apikey=f77a52c999a3400b244172210d4a0ebabb2f0c43926e1d45";
 
     // Services key: dùng cho reverse geocode lấy địa chỉ
     private static final String SERVICES_KEY = "ba1cf0075ef140e2bccc1b2a4392454a11e042a82fb7674a";
