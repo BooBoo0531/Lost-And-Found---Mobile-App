@@ -134,7 +134,7 @@ public class HomeActivity extends AppCompatActivity {
         btnNavHistory.setOnClickListener(v -> {
             if (isFabExpanded) closeFabMenu();
             if (appBarLayout != null) appBarLayout.setExpanded(true, true);
-            // loadFragment(new HistoryFragment());
+            loadFragment(new HistoryFragment());
         });
 
         // Nút Notify: Mở rộng Header

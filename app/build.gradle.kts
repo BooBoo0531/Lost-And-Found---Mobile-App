@@ -66,7 +66,8 @@ dependencies {
     // Ép dùng bản cũ tương thích với SDK 34, không cho nó tự nhảy lên bản 1.12.0 hay 1.16.0
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.fragment:fragment-ktx:1.5.7")
+    implementation("androidx.fragment:fragment-ktx:1.6.2")
+
 
     // 5. Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
