@@ -2,15 +2,18 @@ package com.example.lostandfound;
 
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -18,6 +21,14 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 public class HomeActivity extends AppCompatActivity {
 
@@ -31,58 +42,80 @@ public class HomeActivity extends AppCompatActivity {
 
     // --- BIẾN HEADER ---
     private AppBarLayout appBarLayout;
-    private View btnSearchSmall; // Biến cho nút tìm kiếm nhỏ
+    private View btnSearchSmall;
+    private View fragmentContainer;
+
+    private ImageView imgUserAvatarHome;
+    private FirebaseAuth mAuth;
+    private DatabaseReference mDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        // 1. Ánh xạ các thành phần Header
+        mAuth = FirebaseAuth.getInstance();
+        try {
+            mDatabase = FirebaseDatabase.getInstance("https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app").getReference("users");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 1. Ánh xạ
         appBarLayout = findViewById(R.id.appBarLayout);
         btnSearchSmall = findViewById(R.id.btnSearchSmall);
+        fragmentContainer = findViewById(R.id.fragment_container);
 
-        // Xử lý EdgeToEdge (Tràn viền)
+
+        // Xử lý EdgeToEdge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.home), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // 2. Logic ẩn/hiện icon tìm kiếm khi lướt (QUAN TRỌNG)
         setupCollapsingHeader();
-
-        // 3. Khởi tạo các chức năng khác
         initFabMenu();
         initBottomNavigation();
 
-        // Mặc định load trang tin tức
+
+        // Mặc định load trang Home
         if (savedInstanceState == null) {
             loadFragment(new NewsFeedFragment());
+            updateHeaderVisibility(true);
         }
     }
 
-    // --- HÀM XỬ LÝ HEADER CO GIÃN ---
+    // --- HÀM ẨN/HIỆN HEADER ---
+    private void updateHeaderVisibility(boolean isVisible) {
+        if (appBarLayout == null || fragmentContainer == null) return;
+
+        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fragmentContainer.getLayoutParams();
+
+        if (isVisible) {
+            params.setBehavior(new AppBarLayout.ScrollingViewBehavior());
+            appBarLayout.setVisibility(View.VISIBLE);
+            appBarLayout.setExpanded(true, true);
+        } else {
+            params.setBehavior(null);
+            appBarLayout.setVisibility(View.GONE);
+        }
+        fragmentContainer.requestLayout();
+    }
+
     private void setupCollapsingHeader() {
-        // Sự kiện click nút tìm kiếm nhỏ
         btnSearchSmall.setOnClickListener(v -> {
             Toast.makeText(this, "Đang mở tìm kiếm...", Toast.LENGTH_SHORT).show();
         });
 
-        // Lắng nghe sự kiện cuộn để ẩn/hiện nút
         appBarLayout.addOnOffsetChangedListener((appBar, verticalOffset) -> {
-            // Tính tỷ lệ cuộn (0.0 đến 1.0)
             float percentage = (float) Math.abs(verticalOffset) / appBar.getTotalScrollRange();
-
-            // Nếu cuộn lên quá 75% -> HIỆN NÚT NHỎ
             if (percentage > 0.75f) {
                 if (btnSearchSmall.getVisibility() != View.VISIBLE) {
                     btnSearchSmall.setVisibility(View.VISIBLE);
-                    btnSearchSmall.animate().alpha(1f).setDuration(200).start(); // Hiệu ứng hiện dần
+                    btnSearchSmall.animate().alpha(1f).setDuration(200).start();
                 }
-            }
-            // Nếu đang mở rộng -> ẨN NÚT NHỎ
-            else {
+            } else {
                 if (btnSearchSmall.getVisibility() == View.VISIBLE) {
                     btnSearchSmall.setVisibility(View.INVISIBLE);
                 }
@@ -96,29 +129,24 @@ public class HomeActivity extends AppCompatActivity {
         btnNavNotify = findViewById(R.id.btnNavNotify);
         btnNavSetting = findViewById(R.id.btnNavSetting);
 
-        // Nút Map: Thu gọn Header
         btnNavMap.setOnClickListener(v -> {
-            if (appBarLayout != null) appBarLayout.setExpanded(false, true);
             loadFragment(new MapFragment());
+            updateHeaderVisibility(false);
         });
 
-        // Nút Setting: Thu gọn Header
         btnNavSetting.setOnClickListener(v -> {
-            if (appBarLayout != null) appBarLayout.setExpanded(false, true);
-            // Lưu ý: Đảm bảo class là SettingFragment (nếu bạn đặt tên là Setting thì sửa lại ở đây)
             loadFragment(new Setting());
+            updateHeaderVisibility(false);
         });
 
-        // Nút History: Mở rộng Header
         btnNavHistory.setOnClickListener(v -> {
-            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             // loadFragment(new HistoryFragment());
+            updateHeaderVisibility(true);
         });
 
-        // Nút Notify: Mở rộng Header
         btnNavNotify.setOnClickListener(v -> {
-            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             // loadFragment(new NotifyFragment());
+            updateHeaderVisibility(true);
         });
     }
 
@@ -128,7 +156,6 @@ public class HomeActivity extends AppCompatActivity {
                 .commit();
     }
 
-    // --- LOGIC FAB (Hiệu ứng kim cương + Chữ L) ---
     private void initFabMenu() {
         fabCreatePost = findViewById(R.id.fabCreatePost);
         fabHome = findViewById(R.id.fabHome);
@@ -137,11 +164,10 @@ public class HomeActivity extends AppCompatActivity {
         tvLostLabel = findViewById(R.id.tvLostLabel);
         tvFoundLabel = findViewById(R.id.tvFoundLabel);
 
-        // Nút Home: Về trang chủ + Mở rộng Header
         fabHome.setOnClickListener(v -> {
             if (isFabExpanded) closeFabMenu();
-            if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             loadFragment(new NewsFeedFragment());
+            updateHeaderVisibility(true);
         });
 
         fabCreatePost.setOnClickListener(v -> {
@@ -171,13 +197,11 @@ public class HomeActivity extends AppCompatActivity {
         tvLostLabel.setVisibility(View.VISIBLE);
         tvFoundLabel.setVisibility(View.VISIBLE);
 
-        // Animation chữ L
         fabFound.animate().translationX(-170f).translationY(0f);
         tvFoundLabel.animate().translationX(-170f).translationY(0f);
         fabLost.animate().translationX(0f).translationY(-170f);
         tvLostLabel.animate().translationX(0f).translationY(-170f);
 
-        // Xoay nút cộng thành dấu X
         fabCreatePost.animate().rotation(45f);
     }
 
@@ -194,10 +218,9 @@ public class HomeActivity extends AppCompatActivity {
         tvLostLabel.animate().withEndAction(() -> tvLostLabel.setVisibility(View.INVISIBLE));
         tvFoundLabel.animate().withEndAction(() -> tvFoundLabel.setVisibility(View.INVISIBLE));
 
-        // --- KHÔI PHỤC NÚT TRÒN ---
-        fabCreatePost.setImageResource(R.drawable.ic_add); // Đổi lại dấu +
-        fabCreatePost.setBackgroundResource(0); // Xóa hình thoi
-        fabCreatePost.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F07A7A"))); // Set lại màu hồng
+        fabCreatePost.setImageResource(R.drawable.ic_add);
+        fabCreatePost.setBackgroundResource(0);
+        fabCreatePost.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F07A7A")));
         fabCreatePost.setRotation(0f);
     }
 }
