@@ -1,21 +1,33 @@
 package com.example.lostandfound;
 
-public class Post {
-    private String id;          // ID riêng của bài post (do Firebase tạo)
+import java.io.Serializable;
+
+public class Post implements Serializable {
+
+    // Khuyến nghị thêm serialVersionUID để ổn định khi build
+    private static final long serialVersionUID = 1L;
+
+    private String id;          // ID riêng của bài post (Firebase tạo)
     private String userName;
     private String timePosted;
     private String content;
     private String status;      // "LOST" hoặc "FOUND"
-    private String imageBase64; // Lưu ảnh dưới dạng chuỗi ký tự dài
-    private String contactPhone;// Số điện thoại liên hệ
-    private String address;     // Địa điểm bị mất/nhặt được
+    private String imageBase64; // Ảnh dạng base64
+    private String contactPhone;// SĐT liên hệ
+    private String address;     // Địa điểm
 
-    // 1. BẮT BUỘC: Constructor rỗng cho Firebase
-    public Post() {
-    }
+    // 1) BẮT BUỘC: Constructor rỗng cho Firebase
+    public Post() {}
 
-    // 2. Constructor đầy đủ để mình dùng lúc đăng bài
-    public Post(String id, String userName, String timePosted, String content, String status, String imageBase64, String contactPhone, String address) {
+    // 2) Constructor đầy đủ
+    public Post(String id,
+                String userName,
+                String timePosted,
+                String content,
+                String status,
+                String imageBase64,
+                String contactPhone,
+                String address) {
         this.id = id;
         this.userName = userName;
         this.timePosted = timePosted;
@@ -26,7 +38,7 @@ public class Post {
         this.address = address;
     }
 
-    // 3. Getter và Setter
+    // 3) Getter / Setter
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 

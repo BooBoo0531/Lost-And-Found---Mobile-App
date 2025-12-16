@@ -49,7 +49,12 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.16.0")
 
     // 3. Bản đồ và Vị trí
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("com.github.vietmap-company:maps-sdk-android:2.0.4")
+    implementation("com.github.vietmap-company:maps-sdk-plugin-localization-android:2.0.0")
+    implementation("com.github.vietmap-company:vietmap-services-geojson-android:1.0.0")
+    implementation("com.github.vietmap-company:vietmap-services-turf-android:1.0.2")
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // 4. Giao diện và Hệ thống Android (QUAN TRỌNG: Đã khóa version)
@@ -78,3 +83,4 @@ dependencies {
 
     // LƯU Ý: Tuyệt đối KHÔNG thêm các dòng libs... ở đây nếu không biết nó là bản nào
 }
+

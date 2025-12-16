@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <vn.vietmap.vietmapsdk.maps.MapView
+        android:id="@+id/pick_map_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#CCFFFFFF">
+
+        <TextView
+            android:id="@+id/tv_picked_address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chạm lên bản đồ để chọn vị trí"
+            android:textColor="#222222"
+            android:textSize="14sp"
+            android:paddingBottom="10dp" />
+
+        <Button
+            android:id="@+id/btn_confirm_location"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="XÁC NHẬN VỊ TRÍ" />
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
