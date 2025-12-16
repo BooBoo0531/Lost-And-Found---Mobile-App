@@ -21,7 +21,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
@@ -55,12 +54,10 @@ public class HistoryFragment extends Fragment {
         tvGoNews = view.findViewById(R.id.tvGoNewsFeed);
 
         rvHistory.setLayoutManager(new LinearLayoutManager(getContext()));
-        postAdapter = new PostAdapter(getContext(), postList);
+        postAdapter = new PostAdapter(requireContext(), postList);
         rvHistory.setAdapter(postAdapter);
 
-        progressBar.setVisibility(View.VISIBLE);
-        rvHistory.setVisibility(View.GONE);
-        layoutEmpty.setVisibility(View.GONE);
+        showLoading();
 
         try {
             postsRef = FirebaseDatabase
@@ -68,10 +65,11 @@ public class HistoryFragment extends Fragment {
                     .getReference("posts");
         } catch (Exception e) {
             Toast.makeText(getContext(), "Lỗi kết nối DB: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            showEmpty("Không kết nối được database.\nBấm để xem bài đăng.");
+            return view;
         }
 
         tvGoNews.setOnClickListener(v -> {
-            // ✅ bấm vào để xem bài đăng (NewsFeed)
             requireActivity().getSupportFragmentManager()
                     .beginTransaction()
                     .replace(R.id.fragment_container, new NewsFeedFragment())
@@ -86,16 +84,15 @@ public class HistoryFragment extends Fragment {
         if (postsRef == null) return;
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        String uid = (user != null) ? user.getUid() : null;
         String email = (user != null) ? user.getEmail() : null;
 
-        if (email == null || email.trim().isEmpty()) {
+        if ((uid == null || uid.trim().isEmpty()) && (email == null || email.trim().isEmpty())) {
             showEmpty("Bạn chưa đăng bài viết nào.\n(Đăng nhập để xem lịch sử bài đã đăng)");
             return;
         }
 
-        // ✅ Lấy đúng bài do user đăng (userName = email)
-        Query myPostsQuery = postsRef.orderByChild("userName").equalTo(email);
-
+        // ✅ Load tất cả posts rồi lọc theo userId/userEmail (bắt luôn dữ liệu cũ)
         listener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -103,33 +100,64 @@ public class HistoryFragment extends Fragment {
 
                 for (DataSnapshot child : snapshot.getChildren()) {
                     Post p = child.getValue(Post.class);
-                    if (p != null) {
-                        // add(0, ...) để bài mới lên đầu
-                        postList.add(0, p);
+                    if (p == null) continue;
+
+                    if (isMine(p, uid, email)) {
+                        postList.add(0, p); // bài mới lên đầu
                     }
                 }
 
                 postAdapter.notifyDataSetChanged();
 
-                progressBar.setVisibility(View.GONE);
-
                 if (postList.isEmpty()) {
                     showEmpty("Bạn chưa đăng bài viết nào.");
                 } else {
-                    layoutEmpty.setVisibility(View.GONE);
-                    rvHistory.setVisibility(View.VISIBLE);
+                    showList();
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                progressBar.setVisibility(View.GONE);
                 Toast.makeText(getContext(), "Lỗi tải lịch sử: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                showEmpty("Không tải được lịch sử. Bấm để xem bài đăng.");
+                showEmpty("Không tải được lịch sử.\nBấm để xem bài đăng.");
             }
         };
 
-        myPostsQuery.addValueEventListener(listener);
+        postsRef.addValueEventListener(listener);
+    }
+
+    private boolean isMine(@NonNull Post p, @Nullable String uid, @Nullable String email) {
+        // ưu tiên theo uid
+        try {
+            String postUid = p.getUserId();
+            if (uid != null && !uid.trim().isEmpty()
+                    && postUid != null && uid.equals(postUid)) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+
+        // fallback theo email (Post.getUserEmail() của bạn đã fallback qua userName)
+        try {
+            String postEmail = p.getUserEmail();
+            if (email != null && !email.trim().isEmpty()
+                    && postEmail != null && email.equalsIgnoreCase(postEmail)) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+
+        return false;
+    }
+
+    private void showLoading() {
+        progressBar.setVisibility(View.VISIBLE);
+        rvHistory.setVisibility(View.GONE);
+        layoutEmpty.setVisibility(View.GONE);
+    }
+
+    private void showList() {
+        progressBar.setVisibility(View.GONE);
+        layoutEmpty.setVisibility(View.GONE);
+        rvHistory.setVisibility(View.VISIBLE);
     }
 
     private void showEmpty(String message) {
@@ -142,7 +170,6 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // remove listener tránh leak
         if (postsRef != null && listener != null) {
             postsRef.removeEventListener(listener);
         }

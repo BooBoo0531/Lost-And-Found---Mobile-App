@@ -2,6 +2,7 @@ package com.example.lostandfound;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -48,32 +49,9 @@ public class PostActivity extends AppCompatActivity {
     private DatabaseReference databaseReference;
     private FirebaseAuth mAuth;
 
+    // Launchers
     private ActivityResultLauncher<String> imagePickerLauncher;
-
-    private void registerImagePicker() {
-        imagePickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.GetContent(),
-                uri -> {
-                    if (uri == null) return;
-                    selectedImageUri = uri;
-
-                    if (imgPreview == null) return;
-
-                    // 🔥 XÓA HOÀN TOÀN ICON + TINT
-                    imgPreview.setImageDrawable(null);
-                    imgPreview.setImageTintList(null); // QUAN TRỌNG
-                    imgPreview.setColorFilter(null);
-
-                    imgPreview.setBackground(null);
-                    imgPreview.setPadding(0, 0, 0, 0);
-                    imgPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-
-                    imgPreview.setImageURI(uri);
-                    imgPreview.setVisibility(View.VISIBLE);
-                }
-        );
-    }
-
+    private ActivityResultLauncher<Intent> locationPickerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,15 +59,19 @@ public class PostActivity extends AppCompatActivity {
         setContentView(R.layout.activity_post);
 
         try {
-            databaseReference = FirebaseDatabase.getInstance("https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app").getReference("posts");
+            databaseReference = FirebaseDatabase
+                    .getInstance("https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app")
+                    .getReference("posts");
         } catch (Exception e) {
             databaseReference = null;
             Toast.makeText(this, "Lỗi Database URL", Toast.LENGTH_SHORT).show();
         }
+
         mAuth = FirebaseAuth.getInstance();
 
         initViews();
         registerImagePicker();
+        registerLocationPicker();   // ✅ THÊM LẠI
         setupLogic();
     }
 
@@ -103,16 +85,60 @@ public class PostActivity extends AppCompatActivity {
         edtDescription = findViewById(R.id.edtDescription);
         edtLocation = findViewById(R.id.edtLocation);
         tilLocation = findViewById(R.id.tilLocation);
+
         edtPickTime = findViewById(R.id.btnPickTime);
         edtContact = findViewById(R.id.edtContact);
         edtTransactionPlace = findViewById(R.id.edtTransactionPlace);
 
-        // Ensure a clear default text so validation works reliably
         if (edtPickTime.getText() == null || edtPickTime.getText().toString().trim().isEmpty()) {
             edtPickTime.setText("Chọn thời gian");
         }
 
         btnSubmitPost = findViewById(R.id.btnSubmitPost);
+    }
+
+    private void registerImagePicker() {
+        imagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri == null) return;
+                    selectedImageUri = uri;
+
+                    if (imgPreview == null) return;
+
+                    imgPreview.setImageDrawable(null);
+                    imgPreview.setImageTintList(null);
+                    imgPreview.setColorFilter(null);
+
+                    imgPreview.setBackground(null);
+                    imgPreview.setPadding(0, 0, 0, 0);
+                    imgPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+                    imgPreview.setImageURI(uri);
+                    imgPreview.setVisibility(View.VISIBLE);
+                }
+        );
+    }
+
+    // ✅ THÊM LẠI: Nhận vị trí từ PickLocationActivity và ghi vào edtLocation
+    private void registerLocationPicker() {
+        locationPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        String address = result.getData().getStringExtra(PickLocationActivity.EXTRA_ADDRESS);
+                        double lat = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LAT, 0);
+                        double lng = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LNG, 0);
+
+                        if (address != null && !address.trim().isEmpty()) {
+                            edtLocation.setText(address);
+                        } else {
+                            edtLocation.setText(lat + ", " + lng);
+                        }
+                        edtLocation.setError(null);
+                    }
+                }
+        );
     }
 
     private void setupLogic() {
@@ -121,36 +147,33 @@ public class PostActivity extends AppCompatActivity {
 
         configureUIByType();
 
-        if (toolbarPost != null) {
-            toolbarPost.setNavigationOnClickListener(v -> finish());
-        }
+        if (toolbarPost != null) toolbarPost.setNavigationOnClickListener(v -> finish());
 
         btnSelectImage.setOnClickListener(v -> {
-            if (imagePickerLauncher != null) {
-                imagePickerLauncher.launch("image/*");
-            } else {
-                Toast.makeText(PostActivity.this, "Image picker not ready", Toast.LENGTH_SHORT).show();
-            }
+            if (imagePickerLauncher != null) imagePickerLauncher.launch("image/*");
+            else Toast.makeText(PostActivity.this, "Image picker not ready", Toast.LENGTH_SHORT).show();
         });
 
         edtPickTime.setOnClickListener(v -> showDateTimePicker());
 
+        // ✅ THÊM LẠI: bấm icon định vị để mở map
         if (tilLocation != null) {
-            tilLocation.setEndIconOnClickListener(v ->
-                    Toast.makeText(this, "Chức năng chọn bản đồ đang phát triển!", Toast.LENGTH_SHORT).show()
-            );
+            tilLocation.setEndIconOnClickListener(v -> {
+                Intent i = new Intent(PostActivity.this, PickLocationActivity.class);
+                if (locationPickerLauncher != null) locationPickerLauncher.launch(i);
+                else Toast.makeText(this, "Location picker not ready", Toast.LENGTH_SHORT).show();
+            });
         }
 
         btnSubmitPost.setOnClickListener(v -> submitPost());
     }
 
     private void configureUIByType() {
-        if (toolbarPost == null) return;
+        if (toolbarPost == null || btnSubmitPost == null) return;
 
-        String locationHintString = "";
-        String descHintString = "";
+        String locationHintString;
+        String descHintString;
 
-        // 1. Xác định nội dung Hint dựa trên loại tin (LOST/FOUND)
         if ("LOST".equals(postType)) {
             toolbarPost.setTitle("Đăng tin: TÌM ĐỒ BỊ MẤT");
             toolbarPost.setBackgroundColor(Color.parseColor("#F07A7A"));
@@ -171,20 +194,10 @@ public class PostActivity extends AppCompatActivity {
         setupDynamicHint(edtDescription, descHintString);
     }
 
-    // Tự động ẩn/hiện Hint khi bấm vào ---
     private void setupDynamicHint(TextInputEditText editText, String hintText) {
+        if (editText == null) return;
         editText.setHint("");
-
-        // Bắt sự kiện khi người dùng bấm vào ô nhập
-        editText.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                // Khi bấm vào -> Hiện Hint lên
-                editText.setHint(hintText);
-            } else {
-                // Khi bấm ra ngoài -> Lại xóa Hint đi
-                editText.setHint("");
-            }
-        });
+        editText.setOnFocusChangeListener((v, hasFocus) -> editText.setHint(hasFocus ? hintText : ""));
     }
 
     private void showDateTimePicker() {
@@ -217,7 +230,7 @@ public class PostActivity extends AppCompatActivity {
             edtLocation.requestFocus();
             return;
         }
-        if (timePosted.equals("Chọn thời gian") || timePosted.trim().isEmpty()) {
+        if ("Chọn thời gian".equals(timePosted) || timePosted.trim().isEmpty()) {
             Toast.makeText(this, "Vui lòng chọn thời gian xảy ra!", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -249,24 +262,21 @@ public class PostActivity extends AppCompatActivity {
                 int width = bitmap.getWidth();
                 int height = bitmap.getHeight();
 
-                float bitmapRatio = (float) width / (float) height;
-                if (bitmapRatio > 1) {
+                float ratio = (float) width / (float) height;
+                if (ratio > 1) {
                     width = maxSize;
-                    height = (int) (width / bitmapRatio);
+                    height = (int) (width / ratio);
                 } else {
                     height = maxSize;
-                    width = (int) (height * bitmapRatio);
+                    width = (int) (height * ratio);
                 }
 
                 Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
-
-                // ImageUtil must exist in project
                 imageBase64 = ImageUtil.bitmapToBase64(scaledBitmap);
 
             } catch (IOException e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Lỗi xử lý ảnh", Toast.LENGTH_SHORT).show();
-                // Allow submission without image or abort; here we continue without image
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Lỗi không xác định khi xử lý ảnh", Toast.LENGTH_SHORT).show();
@@ -282,8 +292,9 @@ public class PostActivity extends AppCompatActivity {
 
         FirebaseUser currentUser = mAuth.getCurrentUser();
         String userEmail = (currentUser != null) ? currentUser.getEmail() : "Ẩn danh";
-        String postId = databaseReference.push().getKey();
+        String userId = (currentUser != null) ? currentUser.getUid() : "";
 
+        String postId = databaseReference.push().getKey();
         if (postId == null) {
             Toast.makeText(this, "Lỗi tạo ID bài viết", Toast.LENGTH_SHORT).show();
             btnSubmitPost.setEnabled(true);
@@ -291,15 +302,32 @@ public class PostActivity extends AppCompatActivity {
             return;
         }
 
-        Post newPost = new Post(postId, userEmail, timePosted, description, postType, imageBase64, contact, address);
+        Post newPost = new Post(
+                postId,
+                userId,
+                userEmail,
+                timePosted,
+                description,
+                postType,
+                imageBase64,
+                contact,
+                address
+        );
 
         databaseReference.child(postId).setValue(newPost)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Toast.makeText(PostActivity.this, "Đăng bài thành công!", Toast.LENGTH_SHORT).show();
+
+                        Intent data = new Intent();
+                        data.putExtra("NEW_POST", newPost);
+                        setResult(RESULT_OK, data);
+
                         finish();
                     } else {
-                        Toast.makeText(PostActivity.this, "Lỗi: " + (task.getException() != null ? task.getException().getMessage() : "Không rõ"), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(PostActivity.this,
+                                "Lỗi: " + (task.getException() != null ? task.getException().getMessage() : "Không rõ"),
+                                Toast.LENGTH_SHORT).show();
                         btnSubmitPost.setEnabled(true);
                         btnSubmitPost.setText("ĐĂNG BÀI NGAY");
                     }
