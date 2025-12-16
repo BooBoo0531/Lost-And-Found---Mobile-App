@@ -5,18 +5,16 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -33,36 +31,14 @@ public class HomeActivity extends AppCompatActivity {
 
     // --- BIẾN HEADER ---
     private AppBarLayout appBarLayout;
-    private View btnSearchSmall;
-
-    // --- SHARED VIEWMODEL ---
-    private SharedPostViewModel postVM;
-
-    // --- ACTIVITY RESULT (nhận Post mới từ PostActivity) ---
-    private ActivityResultLauncher<Intent> createPostLauncher;
+    private View btnSearchSmall; // Biến cho nút tìm kiếm nhỏ
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        // 0) ViewModel dùng chung cho các Fragment trong Activity này
-        postVM = new ViewModelProvider(this).get(SharedPostViewModel.class);
-
-        // 0.1) Nhận kết quả từ PostActivity (bài đăng mới)
-        createPostLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                        Post newPost = (Post) result.getData().getSerializableExtra("NEW_POST");
-                        if (newPost != null) {
-                            postVM.addPost(newPost);
-                        }
-                    }
-                }
-        );
-
-        // 1) Ánh xạ các thành phần Header
+        // 1. Ánh xạ các thành phần Header
         appBarLayout = findViewById(R.id.appBarLayout);
         btnSearchSmall = findViewById(R.id.btnSearchSmall);
 
@@ -73,10 +49,10 @@ public class HomeActivity extends AppCompatActivity {
             return insets;
         });
 
-        // 2) Logic ẩn/hiện icon tìm kiếm khi lướt
+        // 2. Logic ẩn/hiện icon tìm kiếm khi lướt (QUAN TRỌNG)
         setupCollapsingHeader();
 
-        // 3) Khởi tạo các chức năng khác
+        // 3. Khởi tạo các chức năng khác
         initFabMenu();
         initBottomNavigation();
 
@@ -95,14 +71,18 @@ public class HomeActivity extends AppCompatActivity {
 
         // Lắng nghe sự kiện cuộn để ẩn/hiện nút
         appBarLayout.addOnOffsetChangedListener((appBar, verticalOffset) -> {
+            // Tính tỷ lệ cuộn (0.0 đến 1.0)
             float percentage = (float) Math.abs(verticalOffset) / appBar.getTotalScrollRange();
 
+            // Nếu cuộn lên quá 75% -> HIỆN NÚT NHỎ
             if (percentage > 0.75f) {
                 if (btnSearchSmall.getVisibility() != View.VISIBLE) {
                     btnSearchSmall.setVisibility(View.VISIBLE);
-                    btnSearchSmall.animate().alpha(1f).setDuration(200).start();
+                    btnSearchSmall.animate().alpha(1f).setDuration(200).start(); // Hiệu ứng hiện dần
                 }
-            } else {
+            }
+            // Nếu đang mở rộng -> ẨN NÚT NHỎ
+            else {
                 if (btnSearchSmall.getVisibility() == View.VISIBLE) {
                     btnSearchSmall.setVisibility(View.INVISIBLE);
                 }
@@ -118,28 +98,25 @@ public class HomeActivity extends AppCompatActivity {
 
         // Nút Map: Thu gọn Header
         btnNavMap.setOnClickListener(v -> {
-            if (isFabExpanded) closeFabMenu();
             if (appBarLayout != null) appBarLayout.setExpanded(false, true);
             loadFragment(new MapFragment());
         });
 
         // Nút Setting: Thu gọn Header
         btnNavSetting.setOnClickListener(v -> {
-            if (isFabExpanded) closeFabMenu();
             if (appBarLayout != null) appBarLayout.setExpanded(false, true);
+            // Lưu ý: Đảm bảo class là SettingFragment (nếu bạn đặt tên là Setting thì sửa lại ở đây)
             loadFragment(new Setting());
         });
 
         // Nút History: Mở rộng Header
         btnNavHistory.setOnClickListener(v -> {
-            if (isFabExpanded) closeFabMenu();
             if (appBarLayout != null) appBarLayout.setExpanded(true, true);
-            loadFragment(new HistoryFragment());
+            // loadFragment(new HistoryFragment());
         });
 
         // Nút Notify: Mở rộng Header
         btnNavNotify.setOnClickListener(v -> {
-            if (isFabExpanded) closeFabMenu();
             if (appBarLayout != null) appBarLayout.setExpanded(true, true);
             // loadFragment(new NotifyFragment());
         });
@@ -176,14 +153,14 @@ public class HomeActivity extends AppCompatActivity {
             closeFabMenu();
             Intent intent = new Intent(HomeActivity.this, PostActivity.class);
             intent.putExtra("POST_TYPE", "LOST");
-            createPostLauncher.launch(intent); // ✅ nhận Post mới khi đăng xong
+            startActivity(intent);
         });
 
         fabFound.setOnClickListener(v -> {
             closeFabMenu();
             Intent intent = new Intent(HomeActivity.this, PostActivity.class);
             intent.putExtra("POST_TYPE", "FOUND");
-            createPostLauncher.launch(intent); // ✅ nhận Post mới khi đăng xong
+            startActivity(intent);
         });
     }
 
@@ -218,9 +195,9 @@ public class HomeActivity extends AppCompatActivity {
         tvFoundLabel.animate().withEndAction(() -> tvFoundLabel.setVisibility(View.INVISIBLE));
 
         // --- KHÔI PHỤC NÚT TRÒN ---
-        fabCreatePost.setImageResource(R.drawable.ic_add);
-        fabCreatePost.setBackgroundResource(0);
-        fabCreatePost.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F07A7A")));
+        fabCreatePost.setImageResource(R.drawable.ic_add); // Đổi lại dấu +
+        fabCreatePost.setBackgroundResource(0); // Xóa hình thoi
+        fabCreatePost.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F07A7A"))); // Set lại màu hồng
         fabCreatePost.setRotation(0f);
     }
 }
