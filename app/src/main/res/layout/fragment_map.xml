@@ -89,6 +89,16 @@
             android:paddingHorizontal="16dp"
             android:layout_marginBottom="8dp"/>
 
+        <TextView
+            android:id="@+id/tvEmptyNearby"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Không có tin nào quanh đây"
+            android:textColor="#777777"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone"/>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvPostsLocation"
             android:layout_width="match_parent"

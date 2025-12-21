@@ -116,7 +116,9 @@ public class NewsFeedFragment extends Fragment {
                 for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
                     Post post = dataSnapshot.getValue(Post.class);
                     if (post != null) {
-                        // đưa bài mới lên đầu
+                        if (post.getId() == null || post.getId().trim().isEmpty()) {
+                            post.setId(dataSnapshot.getKey());
+                        }
                         latest.add(0, post);
                     }
                 }

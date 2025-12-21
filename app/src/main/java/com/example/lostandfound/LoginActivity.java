@@ -16,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+
 public class LoginActivity extends AppCompatActivity {
 
     private EditText etEmail, etPassword;
@@ -61,7 +62,7 @@ public class LoginActivity extends AppCompatActivity {
         // Login button
         btnLogin.setOnClickListener(v -> {
             String email = etEmail.getText().toString().trim(); // Thêm trim() để xoá khoảng trắng thừa
-            String password = etPassword.getText().toString().trim();
+            String password = etPassword.getText().toString();
 
             if (email.isEmpty() || password.isEmpty()) {
                 Toast.makeText(LoginActivity.this, "Vui lòng điền đầy đủ email và mật khẩu!", Toast.LENGTH_SHORT).show();

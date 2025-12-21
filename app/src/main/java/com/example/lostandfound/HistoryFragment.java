@@ -102,8 +102,12 @@ public class HistoryFragment extends Fragment {
                     Post p = child.getValue(Post.class);
                     if (p == null) continue;
 
+                    if (p.getId() == null || p.getId().trim().isEmpty()) {
+                        p.setId(child.getKey());
+                    }
+
                     if (isMine(p, uid, email)) {
-                        postList.add(0, p); // bài mới lên đầu
+                        postList.add(0, p);
                     }
                 }
 

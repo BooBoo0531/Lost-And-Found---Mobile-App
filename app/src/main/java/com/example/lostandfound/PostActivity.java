@@ -49,9 +49,12 @@ public class PostActivity extends AppCompatActivity {
     private DatabaseReference databaseReference;
     private FirebaseAuth mAuth;
 
-    // Launchers
     private ActivityResultLauncher<String> imagePickerLauncher;
     private ActivityResultLauncher<Intent> locationPickerLauncher;
+
+    // ✅ THÊM: lưu tọa độ pick
+    private double pickedLat = 0;
+    private double pickedLng = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +74,7 @@ public class PostActivity extends AppCompatActivity {
 
         initViews();
         registerImagePicker();
-        registerLocationPicker();   // ✅ THÊM LẠI
+        registerLocationPicker();
         setupLogic();
     }
 
@@ -120,20 +123,19 @@ public class PostActivity extends AppCompatActivity {
         );
     }
 
-    // ✅ THÊM LẠI: Nhận vị trí từ PickLocationActivity và ghi vào edtLocation
     private void registerLocationPicker() {
         locationPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                         String address = result.getData().getStringExtra(PickLocationActivity.EXTRA_ADDRESS);
-                        double lat = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LAT, 0);
-                        double lng = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LNG, 0);
+                        pickedLat = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LAT, 0);
+                        pickedLng = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LNG, 0);
 
                         if (address != null && !address.trim().isEmpty()) {
                             edtLocation.setText(address);
                         } else {
-                            edtLocation.setText(lat + ", " + lng);
+                            edtLocation.setText(pickedLat + ", " + pickedLng);
                         }
                         edtLocation.setError(null);
                     }
@@ -156,7 +158,6 @@ public class PostActivity extends AppCompatActivity {
 
         edtPickTime.setOnClickListener(v -> showDateTimePicker());
 
-        // ✅ THÊM LẠI: bấm icon định vị để mở map
         if (tilLocation != null) {
             tilLocation.setEndIconOnClickListener(v -> {
                 Intent i = new Intent(PostActivity.this, PickLocationActivity.class);
@@ -220,25 +221,12 @@ public class PostActivity extends AppCompatActivity {
         String transactionPlace = edtTransactionPlace.getText() != null ? edtTransactionPlace.getText().toString().trim() : "";
         String timePosted = edtPickTime.getText() != null ? edtPickTime.getText().toString() : "";
 
-        if (description.isEmpty()) {
-            edtDescription.setError("Vui lòng nhập mô tả!");
-            edtDescription.requestFocus();
-            return;
-        }
-        if (address.isEmpty()) {
-            edtLocation.setError("Vui lòng nhập địa điểm!");
-            edtLocation.requestFocus();
-            return;
-        }
+        if (description.isEmpty()) { edtDescription.setError("Vui lòng nhập mô tả!"); edtDescription.requestFocus(); return; }
+        if (address.isEmpty()) { edtLocation.setError("Vui lòng nhập địa điểm!"); edtLocation.requestFocus(); return; }
         if ("Chọn thời gian".equals(timePosted) || timePosted.trim().isEmpty()) {
-            Toast.makeText(this, "Vui lòng chọn thời gian xảy ra!", Toast.LENGTH_SHORT).show();
-            return;
+            Toast.makeText(this, "Vui lòng chọn thời gian xảy ra!", Toast.LENGTH_SHORT).show(); return;
         }
-        if (contact.isEmpty()) {
-            edtContact.setError("Vui lòng nhập thông tin liên hệ!");
-            edtContact.requestFocus();
-            return;
-        }
+        if (contact.isEmpty()) { edtContact.setError("Vui lòng nhập thông tin liên hệ!"); edtContact.requestFocus(); return; }
 
         if (!transactionPlace.isEmpty()) {
             description += "\n(Giao dịch tại: " + transactionPlace + ")";
@@ -263,13 +251,8 @@ public class PostActivity extends AppCompatActivity {
                 int height = bitmap.getHeight();
 
                 float ratio = (float) width / (float) height;
-                if (ratio > 1) {
-                    width = maxSize;
-                    height = (int) (width / ratio);
-                } else {
-                    height = maxSize;
-                    width = (int) (height * ratio);
-                }
+                if (ratio > 1) { width = maxSize; height = (int) (width / ratio); }
+                else { height = maxSize; width = (int) (height * ratio); }
 
                 Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
                 imageBase64 = ImageUtil.bitmapToBase64(scaledBitmap);
@@ -314,15 +297,17 @@ public class PostActivity extends AppCompatActivity {
                 address
         );
 
+        // ✅ set lat/lng vào post (Map dùng để lọc 5km)
+        newPost.setLat(pickedLat);
+        newPost.setLng(pickedLng);
+
         databaseReference.child(postId).setValue(newPost)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Toast.makeText(PostActivity.this, "Đăng bài thành công!", Toast.LENGTH_SHORT).show();
-
                         Intent data = new Intent();
                         data.putExtra("NEW_POST", newPost);
                         setResult(RESULT_OK, data);
-
                         finish();
                     } else {
                         Toast.makeText(PostActivity.this,

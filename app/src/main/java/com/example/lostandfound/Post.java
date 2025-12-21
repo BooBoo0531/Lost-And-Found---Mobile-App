@@ -6,7 +6,7 @@ public class Post implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    // ===== Schema mới (đang dùng trong PostActivity/PostAdapter mới) =====
+    // ===== Schema mới =====
     private String id;
     private String userId;
     private String userEmail;
@@ -17,13 +17,16 @@ public class Post implements Serializable {
     private String contact;
     private String address;
 
-    // ===== Schema cũ (để đọc dữ liệu Firebase cũ / code cũ không crash) =====
-    private String userName;      // alias của userEmail
-    private String content;       // alias của description
-    private String status;        // alias của postType
-    private String contactPhone;  // alias của contact
+    // ✅ THÊM: tọa độ để lọc 5km + đặt marker
+    private double lat;
+    private double lng;
 
-    // ✅ BẮT BUỘC: Firebase cần constructor rỗng
+    // ===== Schema cũ =====
+    private String userName;
+    private String content;
+    private String status;
+    private String contactPhone;
+
     public Post() {}
 
     // ===== Constructor kiểu CŨ (8 params) =====
@@ -45,12 +48,14 @@ public class Post implements Serializable {
         this.contactPhone = contactPhone;
         this.address = address;
 
-        // map qua schema mới để adapter mới vẫn dùng được
         this.userId = "";
         this.userEmail = userName;
         this.description = content;
         this.postType = status;
         this.contact = contactPhone;
+
+        this.lat = 0;
+        this.lng = 0;
     }
 
     // ===== Constructor kiểu MỚI (9 params) =====
@@ -74,11 +79,13 @@ public class Post implements Serializable {
         this.contact = contact;
         this.address = address;
 
-        // map qua schema cũ để code cũ không crash
         this.userName = userEmail;
         this.content = description;
         this.status = postType;
         this.contactPhone = contact;
+
+        this.lat = 0;
+        this.lng = 0;
     }
 
     // ===== Getters/Setters (NEW) =====
@@ -90,11 +97,11 @@ public class Post implements Serializable {
 
     public String getUserEmail() {
         if (userEmail != null && !userEmail.isEmpty()) return userEmail;
-        return userName; // fallback dữ liệu cũ
+        return userName;
     }
     public void setUserEmail(String userEmail) {
         this.userEmail = userEmail;
-        this.userName = userEmail; // đồng bộ schema cũ
+        this.userName = userEmail;
     }
 
     public String getTimePosted() { return timePosted; }
@@ -102,20 +109,20 @@ public class Post implements Serializable {
 
     public String getDescription() {
         if (description != null && !description.isEmpty()) return description;
-        return content; // fallback dữ liệu cũ
+        return content;
     }
     public void setDescription(String description) {
         this.description = description;
-        this.content = description; // đồng bộ schema cũ
+        this.content = description;
     }
 
     public String getPostType() {
         if (postType != null && !postType.isEmpty()) return postType;
-        return status; // fallback dữ liệu cũ
+        return status;
     }
     public void setPostType(String postType) {
         this.postType = postType;
-        this.status = postType; // đồng bộ schema cũ
+        this.status = postType;
     }
 
     public String getImageBase64() { return imageBase64; }
@@ -123,17 +130,24 @@ public class Post implements Serializable {
 
     public String getContact() {
         if (contact != null && !contact.isEmpty()) return contact;
-        return contactPhone; // fallback dữ liệu cũ
+        return contactPhone;
     }
     public void setContact(String contact) {
         this.contact = contact;
-        this.contactPhone = contact; // đồng bộ schema cũ
+        this.contactPhone = contact;
     }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    // ===== Alias getters/setters (OLD) để code cũ khỏi đỏ =====
+    // ✅ lat/lng
+    public double getLat() { return lat; }
+    public void setLat(double lat) { this.lat = lat; }
+
+    public double getLng() { return lng; }
+    public void setLng(double lng) { this.lng = lng; }
+
+    // ===== Alias getters/setters (OLD) =====
     public String getUserName() { return getUserEmail(); }
     public void setUserName(String userName) { setUserEmail(userName); }
 
