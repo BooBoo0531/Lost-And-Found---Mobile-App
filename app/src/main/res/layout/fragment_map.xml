@@ -63,6 +63,7 @@
         android:id="@+id/bottomSheetContainer"
         android:layout_width="match_parent"
         android:layout_height="450dp"
+        android:layout_gravity="bottom"
         android:orientation="vertical"
         android:background="@drawable/bg_bottom_sheet_rounded"
         android:elevation="16dp"
