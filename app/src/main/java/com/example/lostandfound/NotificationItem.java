@@ -1,6 +1,10 @@
 package com.example.lostandfound;
 
-public class NotificationItem {
+import java.io.Serializable;
+
+public class NotificationItem implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     public String id;
     public String toUserId;
 
@@ -10,7 +14,7 @@ public class NotificationItem {
     public String postId;
     public String commentId;
     public String type;      // "COMMENT" | "REPLY"
-    public String content;   // nội dung comment/reply (rút gọn)
+    public String content;   // nội dung comment/reply
     public long timestamp;
 
     public boolean isRead;

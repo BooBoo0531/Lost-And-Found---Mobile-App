@@ -1,13 +1,24 @@
 package com.example.lostandfound;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -50,6 +61,7 @@ public class PickLocationActivity extends AppCompatActivity
 
     private TextView tvPickedAddress;
     private Button btnConfirm;
+    private FloatingActionButton fabMyLocation;
 
     private Marker pickedMarker;
     private LatLng pickedLatLng;
@@ -58,6 +70,20 @@ public class PickLocationActivity extends AppCompatActivity
     private final OkHttpClient httpClient = new OkHttpClient();
 
     private final LatLng defaultPoint = new LatLng(10.8018, 106.7143);
+
+    private FusedLocationProviderClient fusedLocationClient;
+
+    private final ActivityResultLauncher<String[]> locationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                boolean fine = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION));
+                boolean coarse = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
+
+                if (fine || coarse) {
+                    locateMe(); // ✅ có quyền rồi thì định vị luôn
+                } else {
+                    Toast.makeText(this, "Bạn cần cho phép quyền vị trí để định vị", Toast.LENGTH_SHORT).show();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,16 +94,21 @@ public class PickLocationActivity extends AppCompatActivity
 
         setContentView(R.layout.activity_pick_location);
 
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
         tvPickedAddress = findViewById(R.id.tv_picked_address);
         btnConfirm = findViewById(R.id.btn_confirm_location);
+        fabMyLocation = findViewById(R.id.fab_my_location);
 
         mapView = findViewById(R.id.pick_map_view);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
+        fabMyLocation.setOnClickListener(v -> locateMe());
+
         btnConfirm.setOnClickListener(v -> {
             if (pickedLatLng == null) {
-                Toast.makeText(this, "Bạn hãy chạm lên bản đồ để chọn vị trí!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Bạn hãy chạm lên bản đồ hoặc bấm định vị để chọn vị trí!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -107,6 +138,11 @@ public class PickLocationActivity extends AppCompatActivity
 
     @Override
     public boolean onMapClick(@NonNull LatLng point) {
+        pickPoint(point, true);
+        return true;
+    }
+
+    private void pickPoint(@NonNull LatLng point, boolean animateCamera) {
         pickedLatLng = point;
 
         // remove marker cũ
@@ -119,7 +155,9 @@ public class PickLocationActivity extends AppCompatActivity
             pickedMarker = vietMapGL.addMarker(
                     new MarkerOptions().position(point).title("Vị trí đã chọn")
             );
-            vietMapGL.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 17));
+            if (animateCamera) {
+                vietMapGL.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 17));
+            }
         }
 
         // fallback trước: tọa độ
@@ -128,9 +166,50 @@ public class PickLocationActivity extends AppCompatActivity
 
         // gọi reverse geocode để ra địa chỉ chữ
         reverseGeocode(point);
-
-        return true;
     }
+
+    // ===================== ĐỊNH VỊ (MY LOCATION) =====================
+
+    private void locateMe() {
+        if (!hasLocationPermission()) {
+            locationPermissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+            return;
+        }
+
+        tvPickedAddress.setText("Đang định vị...");
+
+        // ưu tiên lastLocation (nhanh)
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(loc -> {
+                    if (loc != null) {
+                        onGotLocation(loc);
+                    } else {
+                        // nếu null thì lấy current location
+                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                                .addOnSuccessListener(current -> {
+                                    if (current != null) onGotLocation(current);
+                                    else tvPickedAddress.setText("Không lấy được vị trí hiện tại");
+                                })
+                                .addOnFailureListener(e -> tvPickedAddress.setText("Không lấy được vị trí hiện tại"));
+                    }
+                })
+                .addOnFailureListener(e -> tvPickedAddress.setText("Không lấy được vị trí hiện tại"));
+    }
+
+    private void onGotLocation(@NonNull Location loc) {
+        LatLng me = new LatLng(loc.getLatitude(), loc.getLongitude());
+        pickPoint(me, true); // ✅ sẽ tự reverse geocode và set địa chỉ
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // ===================== REVERSE GEOCODE =====================
 
     private void reverseGeocode(@NonNull LatLng point) {
         String url = "https://maps.vietmap.vn/api/reverse/v3"

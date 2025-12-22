@@ -2,10 +2,12 @@ package com.example.lostandfound;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,8 +20,10 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapter.VH> {
 
@@ -31,6 +35,9 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     private final List<NotificationItem> list;
     private final DatabaseReference usersRef;
     private final OnItemClick onItemClick;
+
+    // cache để không tải user lặp lại
+    private final Map<String, UserCache> cache = new HashMap<>();
 
     public NotificationAdapter(Context context,
                                List<NotificationItem> list,
@@ -45,66 +52,124 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // ✅ nhớ đúng tên layout bạn đang dùng:
         View v = LayoutInflater.from(context).inflate(R.layout.item_notification, parent, false);
         return new VH(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        NotificationItem n = list.get(position);
+        NotificationItem item = list.get(position);
 
-        String who = (n.fromEmail == null || n.fromEmail.isEmpty()) ? "Ai đó" : n.fromEmail;
+        // default
+        String email = (item.fromEmail != null && !item.fromEmail.trim().isEmpty())
+                ? item.fromEmail
+                : "Ai đó";
+        h.tvName.setText(email);
 
-        String title;
-        if ("REPLY".equalsIgnoreCase(n.type)) {
-            title = who + " đã trả lời bình luận của bạn";
-        } else {
-            title = who + " đã bình luận bài viết của bạn";
-        }
-        h.tvTitle.setText(title);
+        // ✅ nội dung tin nhắn thông báo
+        String msg = (item.content == null) ? "" : item.content.trim();
+        h.tvContent.setText(msg);
 
-        h.tvContent.setText(n.content == null ? "" : n.content);
-
+        // time
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-                .format(new Date(n.timestamp));
+                .format(new Date(item.timestamp));
         h.tvTime.setText(time);
 
-        h.dotUnread.setVisibility(n.isRead ? View.GONE : View.VISIBLE);
+        // unread UI
+        boolean unread = !item.isRead;
+        h.tvUnreadDot.setVisibility(unread ? View.VISIBLE : View.GONE);
+        h.tvName.setTypeface(null, unread ? Typeface.BOLD : Typeface.NORMAL);
 
-        // avatar
-        bindAvatar(h, n.fromUserId);
-
-        h.itemView.setOnClickListener(v -> {
-            if (onItemClick != null) onItemClick.onClick(n);
-        });
-    }
-
-    private void bindAvatar(@NonNull VH h, String fromUserId) {
+        // avatar default
         h.imgAvatar.setImageResource(R.drawable.ic_notification);
         h.imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
         h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-        if (fromUserId == null || fromUserId.trim().isEmpty() || usersRef == null) return;
+        // ✅ load tên + avatar từ /users/{fromUserId}
+        bindUser(h, item);
 
-        h.imgAvatar.setTag(fromUserId);
-        usersRef.child(fromUserId).child("avatarUrl")
+        h.root.setOnClickListener(v -> {
+            if (onItemClick != null) onItemClick.onClick(item);
+        });
+    }
+
+    private void bindUser(@NonNull VH h, @NonNull NotificationItem item) {
+
+        // luôn hiển thị email
+        String email = (item.fromEmail != null && !item.fromEmail.trim().isEmpty())
+                ? item.fromEmail.trim()
+                : "";
+        if (!email.isEmpty()) h.tvName.setText(email);
+
+        // avatar default
+        h.imgAvatar.setImageResource(R.drawable.ic_notification);
+        h.imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
+        h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+
+        // ✅ 1) Ưu tiên load avatar theo fromUserId
+        String uid = item.fromUserId;
+        if (uid != null && !uid.trim().isEmpty() && usersRef != null) {
+            h.imgAvatar.setTag("uid:" + uid);
+
+            usersRef.child(uid).child("avatarUrl")
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            Object tag = h.imgAvatar.getTag();
+                            if (tag == null || !("uid:" + uid).equals(tag.toString())) return;
+
+                            String base64 = snapshot.getValue(String.class);
+                            if (base64 == null || base64.isEmpty()) return;
+
+                            Bitmap bmp = ImageUtil.base64ToBitmap(base64);
+                            if (bmp != null) {
+                                h.imgAvatar.setPadding(0, 0, 0, 0);
+                                h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                                h.imgAvatar.setImageBitmap(bmp);
+                            }
+                        }
+                        @Override public void onCancelled(@NonNull DatabaseError error) {}
+                    });
+
+            return;
+        }
+
+        // ✅ 2) FALLBACK: không có uid -> tìm user theo email để lấy avatar
+        if (usersRef == null || email.isEmpty()) return;
+
+        h.imgAvatar.setTag("email:" + email);
+
+        usersRef.orderByChild("email").equalTo(email)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
                         Object tag = h.imgAvatar.getTag();
-                        if (tag == null || !fromUserId.equals(tag.toString())) return;
+                        if (tag == null || !("email:" + email).equals(tag.toString())) return;
 
-                        String base64 = snapshot.getValue(String.class);
-                        if (base64 == null || base64.isEmpty()) return;
+                        for (DataSnapshot userSnap : snapshot.getChildren()) {
+                            String avatar = userSnap.child("avatarUrl").getValue(String.class);
+                            if (avatar == null || avatar.isEmpty()) continue;
 
-                        Bitmap bmp = ImageUtil.base64ToBitmap(base64);
-                        if (bmp != null) {
-                            h.imgAvatar.setPadding(0,0,0,0);
-                            h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                            h.imgAvatar.setImageBitmap(bmp);
+                            Bitmap bmp = ImageUtil.base64ToBitmap(avatar);
+                            if (bmp != null) {
+                                h.imgAvatar.setPadding(0, 0, 0, 0);
+                                h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                                h.imgAvatar.setImageBitmap(bmp);
+                            }
+                            break; // lấy user đầu tiên match email
                         }
                     }
+
                     @Override public void onCancelled(@NonNull DatabaseError error) {}
                 });
+    }
+
+
+    private String firstNonEmpty(String... arr) {
+        if (arr == null) return "";
+        for (String s : arr) {
+            if (s != null && !s.trim().isEmpty()) return s.trim();
+        }
+        return "";
     }
 
     private int dp(int v) {
@@ -118,17 +183,27 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
 
     static class VH extends RecyclerView.ViewHolder {
+        LinearLayout root;
         ImageView imgAvatar;
-        View dotUnread;
-        TextView tvTitle, tvContent, tvTime;
+        TextView tvName, tvContent, tvTime, tvUnreadDot;
 
         VH(@NonNull View itemView) {
             super(itemView);
+            root = itemView.findViewById(R.id.rootNotify);
             imgAvatar = itemView.findViewById(R.id.imgNotifyAvatar);
-            dotUnread = itemView.findViewById(R.id.dotUnread);
-            tvTitle = itemView.findViewById(R.id.tvNotifyTitle);
+            tvName = itemView.findViewById(R.id.tvNotifyName);
             tvContent = itemView.findViewById(R.id.tvNotifyContent);
             tvTime = itemView.findViewById(R.id.tvNotifyTime);
+            tvUnreadDot = itemView.findViewById(R.id.tvUnreadDot);
+        }
+    }
+
+    static class UserCache {
+        String name;
+        String avatarBase64;
+        UserCache(String name, String avatarBase64) {
+            this.name = name == null ? "" : name;
+            this.avatarBase64 = avatarBase64 == null ? "" : avatarBase64;
         }
     }
 }

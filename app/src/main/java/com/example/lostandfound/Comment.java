@@ -6,6 +6,10 @@ public class Comment {
     public String userId;
     public String userEmail;
     public String content;
+
+    // ✅ Hỗ trợ dữ liệu cũ (nếu DB từng lưu key "text" thay vì "content")
+    public String text;
+
     public String imageBase64;
     public String parentId;   // null/"" = comment, có giá trị = reply
     public long timestamp;

@@ -23,7 +23,6 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class NotificationFragment extends Fragment {
@@ -72,12 +71,12 @@ public class NotificationFragment extends Fragment {
                 notifyRef.child(item.id).child("isRead").setValue(true);
             }
 
-            // Nếu bạn đã có CommentsBottomSheetDialogFragment:
+            // ✅ Bấm vào thông báo -> mở chi tiết (tên + avatar + nội dung)
             try {
-                CommentsBottomSheetDialogFragment.newInstance(item.postId)
-                        .show(requireActivity().getSupportFragmentManager(), "COMMENTS_" + item.postId);
+                NotificationDetailBottomSheetDialogFragment.newInstance(item)
+                        .show(requireActivity().getSupportFragmentManager(), "NOTI_DETAIL");
             } catch (Exception e) {
-                Toast.makeText(getContext(), "Đã mở thông báo (chưa có màn bình luận)", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Không mở được chi tiết thông báo", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -85,16 +84,12 @@ public class NotificationFragment extends Fragment {
 
         listenNotifications();
 
-        // ✅ vào màn Notify là coi như đã xem -> có thể mark all read (tuỳ bạn)
-        markAllRead();
-
         return v;
     }
 
     private void listenNotifications() {
         if (notifyRef == null) return;
 
-        // lấy toàn bộ, sort timestamp desc
         notifyListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -116,22 +111,6 @@ public class NotificationFragment extends Fragment {
         };
 
         notifyRef.addValueEventListener(notifyListener);
-    }
-
-    private void markAllRead() {
-        if (notifyRef == null) return;
-
-        notifyRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
-                for (DataSnapshot child : snapshot.getChildren()) {
-                    Boolean isRead = child.child("isRead").getValue(Boolean.class);
-                    if (isRead == null || !isRead) {
-                        child.getRef().child("isRead").setValue(true);
-                    }
-                }
-            }
-            @Override public void onCancelled(@NonNull DatabaseError error) {}
-        });
     }
 
     @Override

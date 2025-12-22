@@ -52,13 +52,17 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         Comment c = list.get(position);
 
         h.tvName.setText(safe(c.userEmail));
-        h.tvContent.setText(safe(c.content));
+
+        String msg = pickMessage(c);
+        if ((msg == null || msg.trim().isEmpty()) && c.imageBase64 != null && !c.imageBase64.isEmpty()) {
+            msg = "🖼 Ảnh";
+        }
+        h.tvContent.setText(safe(msg));
 
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                 .format(new Date(c.timestamp));
         h.tvTime.setText(time);
 
-        // indent nếu là reply
         boolean isReply = c.parentId != null && !c.parentId.trim().isEmpty();
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) h.root.getLayoutParams();
         if (lp != null) {
@@ -66,7 +70,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
             h.root.setLayoutParams(lp);
         }
 
-        // image
         if (c.imageBase64 != null && !c.imageBase64.isEmpty()) {
             Bitmap bmp = ImageUtil.base64ToBitmap(c.imageBase64);
             if (bmp != null) {
@@ -79,13 +82,18 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
             h.imgComment.setVisibility(View.GONE);
         }
 
-        // reply click
         h.btnReply.setOnClickListener(v -> {
             if (onReplyClick != null) onReplyClick.onReply(c);
         });
 
-        // avatar
         bindAvatar(h, c.userId);
+    }
+
+    private String pickMessage(Comment c) {
+        if (c == null) return "";
+        if (c.content != null && !c.content.trim().isEmpty()) return c.content;
+        if (c.text != null && !c.text.trim().isEmpty()) return c.text;
+        return "";
     }
 
     private void bindAvatar(@NonNull VH h, String userId) {

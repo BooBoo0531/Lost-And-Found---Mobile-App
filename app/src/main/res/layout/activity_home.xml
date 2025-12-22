@@ -177,7 +177,7 @@
                         android:layout_width="9dp"
                         android:layout_height="9dp"
                         android:layout_gravity="end|top"
-                        android:background="@android:drawable/presence_busy"
+                        android:background="@drawable/bg_dot_red"
                         android:visibility="gone"/>
                 </FrameLayout>
 

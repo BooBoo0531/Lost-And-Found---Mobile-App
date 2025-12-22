@@ -150,7 +150,6 @@ public class HomeActivity extends AppCompatActivity {
         if (btnNavNotify != null) {
             btnNavNotify.setOnClickListener(v -> {
                 if (appBarLayout != null) appBarLayout.setExpanded(true, true);
-                setNotifyDotVisible(false); // ✅ tắt dot ngay khi vào Notify (UX)
                 loadFragment(new NotificationFragment());
             });
         }
@@ -254,34 +253,37 @@ public class HomeActivity extends AppCompatActivity {
                 .getReference("notifications")
                 .child(uid);
 
-        // ✅ chỉ nghe những notify chưa đọc
-        unreadQuery = notifyRef.orderByChild("isRead").equalTo(false);
-
-        // gỡ listener cũ (nếu có)
-        if (unreadListener != null && unreadQuery != null) {
-            unreadQuery.removeEventListener(unreadListener);
+        // gỡ listener cũ
+        if (unreadListener != null && notifyRef != null) {
+            notifyRef.removeEventListener(unreadListener);
         }
 
         unreadListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                boolean hasUnread = snapshot.exists() && snapshot.getChildrenCount() > 0;
+                boolean hasUnread = false;
+
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Boolean isRead = child.child("isRead").getValue(Boolean.class);
+                    if (isRead == null || !isRead) { // ✅ null cũng tính là chưa đọc
+                        hasUnread = true;
+                        break;
+                    }
+                }
                 setNotifyDotVisible(hasUnread);
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            @Override public void onCancelled(@NonNull DatabaseError error) { }
         };
 
-        unreadQuery.addValueEventListener(unreadListener);
+        notifyRef.addValueEventListener(unreadListener);
     }
 
     private void stopNotifyBadgeListener() {
-        if (unreadQuery != null && unreadListener != null) {
-            unreadQuery.removeEventListener(unreadListener);
+        if (notifyRef != null && unreadListener != null) {
+            notifyRef.removeEventListener(unreadListener);
         }
         unreadListener = null;
-        unreadQuery = null;
         notifyRef = null;
     }
 
