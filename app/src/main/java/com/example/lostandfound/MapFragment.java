@@ -1,8 +1,10 @@
 package com.example.lostandfound;
 
-import android.content.Context;
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,157 +14,638 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-// Thư viện OSMDROID
-import org.osmdroid.config.Configuration;
-import org.osmdroid.tileprovider.tilesource.XYTileSource;
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.Marker;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class MapFragment extends Fragment {
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-    private MapView map;
+import vn.vietmap.vietmapsdk.Vietmap;
+import vn.vietmap.vietmapsdk.annotations.Marker;
+import vn.vietmap.vietmapsdk.annotations.MarkerOptions;
+import vn.vietmap.vietmapsdk.camera.CameraUpdateFactory;
+import vn.vietmap.vietmapsdk.geometry.LatLng;
+import vn.vietmap.vietmapsdk.location.LocationComponent;
+import vn.vietmap.vietmapsdk.location.LocationComponentActivationOptions;
+import vn.vietmap.vietmapsdk.location.modes.CameraMode;
+import vn.vietmap.vietmapsdk.location.modes.RenderMode;
+import vn.vietmap.vietmapsdk.maps.MapView;
+import vn.vietmap.vietmapsdk.maps.OnMapReadyCallback;
+import vn.vietmap.vietmapsdk.maps.Style;
+import vn.vietmap.vietmapsdk.maps.VietMapGL;
+
+public class MapFragment extends Fragment
+        implements OnMapReadyCallback, VietMapGL.OnMapClickListener {
+
+    // Tile key: hiển thị bản đồ
+    private static final String STYLE_URL =
+            "https://maps.vietmap.vn/api/maps/light/styles.json?apikey=f77a52c999a3400b244172210d4a0ebabb2f0c43926e1d45";
+
+    // Service key: reverse geocode
+    private static final String SERVICES_KEY =
+            "ba1cf0075ef140e2bccc1b2a4392454a11e042a82fb7674a";
+
+    private static final float RADIUS_METERS = 5000f; // 5km
+    private static final int REQ_LOCATION = 1101;
+
+    private MapView mapView;
+    private VietMapGL vietMapGL;
+    private LocationComponent locationComponent;
+
     private BottomSheetBehavior<LinearLayout> bottomSheetBehavior;
+
+    private RecyclerView rvPosts;
     private PostAdapter postAdapter;
-    // 1. THÊM BIẾN NÀY ĐỂ QUẢN LÝ DỮ LIỆU
-    private List<Post> postList;
+    private final List<Post> postList = new ArrayList<>();
+    private final List<Post> allPosts = new ArrayList<>();
 
     private TextView tvProvinceTitle;
+    private TextView tvEmptyNearby;
     private FloatingActionButton btnMyLocation;
     private TextView tvSearch;
+
+    private FusedLocationProviderClient fusedClient;
+    private LatLng myLatLng = null;
+
+    private final List<Marker> markers = new ArrayList<>();
+    private final Map<Long, String> markerIdToPostId = new HashMap<>();
+
+    private String focusedPostId = null; // focus 1 bài theo marker
+    private String selectedWard = null;  // lọc theo phường (tap map)
+
+    // ✅ bấm định vị thì title lên ngay “≤5km” dù chưa lấy xong location
+    private boolean forceNearbyTitle = false;
+
+    private SharedPostViewModel postVM;
+
+    // OkHttp reverse
+    private final OkHttpClient httpClient = new OkHttpClient();
+    private Call pendingReverseCall = null;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Context ctx = requireContext().getApplicationContext();
-        Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
-        Configuration.getInstance().setUserAgentValue(ctx.getPackageName());
+        Vietmap.getInstance(requireContext());
+        fusedClient = LocationServices.getFusedLocationProviderClient(requireActivity());
     }
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
+        // BottomSheet
         LinearLayout bottomSheetPanel = view.findViewById(R.id.bottomSheetContainer);
-        tvProvinceTitle = view.findViewById(R.id.tvProvinceTitle);
-        btnMyLocation = view.findViewById(R.id.btnMyLocation);
-        tvSearch = view.findViewById(R.id.tvSearchMap);
-
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetPanel);
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
-        // --- CẤU HÌNH RECYCLERVIEW (ĐÃ SỬA) ---
-        RecyclerView rvPosts = view.findViewById(R.id.rvPostsLocation);
-        rvPosts.setLayoutManager(new LinearLayoutManager(getContext()));
+        // Views
+        tvProvinceTitle = view.findViewById(R.id.tvProvinceTitle);
+        tvEmptyNearby = view.findViewById(R.id.tvEmptyNearby);
+        btnMyLocation = view.findViewById(R.id.btnMyLocation);
+        tvSearch = view.findViewById(R.id.tvSearchMap);
 
-        // 2. KHỞI TẠO LIST VÀ ADAPTER ĐÚNG CÁCH (Fix lỗi biên dịch)
-        postList = new ArrayList<>();
-        postAdapter = new PostAdapter(getContext(), postList);
+        // Recycler
+        rvPosts = view.findViewById(R.id.rvPostsLocation);
+        rvPosts.setLayoutManager(new LinearLayoutManager(getContext()));
+        postAdapter = new PostAdapter(requireContext(), postList);
         rvPosts.setAdapter(postAdapter);
 
-        // --- CẤU HÌNH BẢN ĐỒ ---
-        map = view.findViewById(R.id.map);
+        // MapView
+        mapView = view.findViewById(R.id.map);
+        mapView.onCreate(savedInstanceState);
+        mapView.getMapAsync(this);
 
-        XYTileSource cartoDbLight = new XYTileSource(
-                "CartoDbLight",
-                1, 20, 256, ".png",
-                new String[] {
-                        "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/",
-                        "https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/",
-                        "https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/"
-                },
-                "© OpenStreetMap contributors, © CARTO"
-        );
-        map.setTileSource(cartoDbLight);
+        // ViewModel: lấy danh sách bài
+        postVM = new ViewModelProvider(requireActivity()).get(SharedPostViewModel.class);
+        postVM.getPosts().observe(getViewLifecycleOwner(), posts -> {
+            allPosts.clear();
+            if (posts != null) allPosts.addAll(posts);
+            applyFilterAndRender();
+        });
 
-        map.setMultiTouchControls(true);
-        map.setBuiltInZoomControls(false);
-        map.getController().setZoom(15.0);
-
-        GeoPoint startPoint = new GeoPoint(10.8018, 106.7143);
-        map.getController().setCenter(startPoint);
-
-        // --- SỰ KIỆN ---
+        // Buttons
         btnMyLocation.setOnClickListener(v -> {
-            map.getController().animateTo(startPoint);
-            map.getController().setZoom(17.0);
-            Toast.makeText(getContext(), "Đang lấy vị trí của bạn...", Toast.LENGTH_SHORT).show();
+            // clear filter
+            focusedPostId = null;
+            selectedWard = null;
+
+            // ✅ ép title hiện 5km ngay khi bấm
+            forceNearbyTitle = true;
+            updateTitle();
+
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+            moveToMyLocationAndFilter();
         });
 
-        tvSearch.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Mở màn hình tìm kiếm...", Toast.LENGTH_SHORT).show();
+        tvSearch.setOnClickListener(v ->
+                Toast.makeText(getContext(), "Mở màn hình tìm kiếm...", Toast.LENGTH_SHORT).show()
+        );
+
+        // Kéo sheet về collapsed -> thoát filter (phường + marker)
+        bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    if (focusedPostId != null || selectedWard != null) {
+                        focusedPostId = null;
+                        selectedWard = null;
+                        updateTitle();
+                        applyFilterAndRender();
+                    }
+                }
+            }
+            @Override public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
         });
-
-        // --- THÊM MARKER ---
-        addMarker(new GeoPoint(10.8018, 106.7143), "Ví da nâu", "HUTECH Khu E");
-        addMarker(new GeoPoint(10.8010, 106.7135), "Chìa khóa xe", "Landmark 81");
-        addMarker(new GeoPoint(10.8025, 106.7150), "Mèo anh lông ngắn", "Chung cư City Garden");
-
-        loadMockData("Gần bạn");
 
         return view;
     }
 
-    private void addMarker(GeoPoint point, String itemTitle, String locationName) {
-        Marker marker = new Marker(map);
-        marker.setPosition(point);
-        marker.setTitle(itemTitle);
-        marker.setSnippet(locationName);
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+    @Override
+    public void onMapReady(@NonNull VietMapGL map) {
+        this.vietMapGL = map;
 
-        marker.setOnMarkerClickListener((m, mapView) -> {
-            tvProvinceTitle.setText(m.getTitle() + " - " + m.getSnippet());
-            loadMockData(m.getTitle());
-            map.getController().animateTo(m.getPosition());
-            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-            m.showInfoWindow();
-            return true;
+        vietMapGL.setStyle(new Style.Builder().fromUri(STYLE_URL), style -> {
+            enableLocationComponent(style);
+
+            focusedPostId = null;
+            updateTitle();
+
+            // add listener sau khi style ready
+            vietMapGL.addOnMapClickListener(MapFragment.this);
+
+            // lấy vị trí => lọc 5km
+            requestMyLocationAndRefresh();
         });
-        map.getOverlays().add(marker);
+
+        // Marker click: focus 1 bài
+        vietMapGL.setOnMarkerClickListener(marker -> {
+            String postId = markerIdToPostId.get(marker.getId());
+            if (postId != null) {
+                selectedWard = null;
+                focusedPostId = postId;
+
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                applyFilterAndRender();
+            }
+            return false;
+        });
     }
 
-    private void loadMockData(String keyword) {
-        List<Post> dummyPosts = new ArrayList<>();
+    // Tap map -> reverse -> lấy phường -> lọc (LẤY HẾT, không cần 5km)
+    @Override
+    public boolean onMapClick(@NonNull LatLng point) {
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
 
-        if (keyword.contains("Ví")) {
-            // Insert empty userEmail "" to match Post constructor signature (9 params)
-            dummyPosts.add(new Post("id1", "Nguyễn Văn A", "", "10 phút trước", "Mình đánh rơi ví da màu nâu tại sảnh E...", "LOST", null, "090123456", "HUTECH Khu E"));
-        } else if (keyword.contains("Chìa")) {
-            dummyPosts.add(new Post("id2", "Trần Thị B", "", "2 giờ trước", "Nhặt được chìa khoá xe Honda Vision...", "FOUND", null, "0909888777", "Landmark 81"));
-        } else if (keyword.contains("Mèo")) {
-            dummyPosts.add(new Post("id3", "Lê C", "", "1 ngày trước", "Tìm mèo lạc, có hậu tạ...", "LOST", null, "0912345678", "Chung cư City Garden"));
-        } else {
-            dummyPosts.add(new Post("id4", "User 1", "", "Vừa xong", "Rơi tai nghe AirPods...", "LOST", null, "0123", "Gần đây"));
-            dummyPosts.add(new Post("id5", "User 2", "", "15p trước", "Nhặt được thẻ gửi xe...", "FOUND", null, "0456", "Gần đây"));
-            dummyPosts.add(new Post("id6", "User 3", "", "1h trước", "Tìm chó lạc...", "LOST", null, "0789", "Gần đây"));
+        // tap map thì bỏ ép title 5km
+        forceNearbyTitle = false;
+
+        focusedPostId = null;
+        tvProvinceTitle.setText("Đang lấy phường...");
+        tvEmptyNearby.setVisibility(View.GONE);
+
+        reverseWard(point);
+        return true;
+    }
+
+    // ===================== REVERSE (V3) =====================
+    private void reverseWard(@NonNull LatLng point) {
+        if (pendingReverseCall != null) pendingReverseCall.cancel();
+
+        String url = "https://maps.vietmap.vn/api/reverse/v3"
+                + "?apikey=" + SERVICES_KEY
+                + "&lng=" + point.getLongitude()
+                + "&lat=" + point.getLatitude();
+
+        Request request = new Request.Builder().url(url).build();
+        pendingReverseCall = httpClient.newCall(request);
+
+        pendingReverseCall.enqueue(new Callback() {
+            @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (!isAdded() || call.isCanceled()) return;
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(getContext(), "Reverse thất bại", Toast.LENGTH_SHORT).show();
+                    selectedWard = null;
+                    updateTitle();
+                    applyFilterAndRender();
+                });
+            }
+
+            @Override public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (!isAdded() || call.isCanceled()) return;
+
+                String body = response.body() != null ? response.body().string() : "";
+                String display = null;
+
+                try {
+                    JSONArray arr = new JSONArray(body);
+                    if (arr.length() > 0) {
+                        JSONObject obj = arr.getJSONObject(0);
+                        display = obj.optString("display", null);
+                    }
+                } catch (Exception ignored) {}
+
+                final String ward = extractWard(display);
+
+                requireActivity().runOnUiThread(() -> {
+                    if (ward == null || ward.trim().isEmpty()) {
+                        Toast.makeText(getContext(), "Không lấy được phường tại điểm này", Toast.LENGTH_SHORT).show();
+                        selectedWard = null;
+                    } else {
+                        selectedWard = ward.trim();
+                    }
+                    updateTitle();
+                    applyFilterAndRender();
+                });
+            }
+        });
+    }
+
+    // Tách phường/xã/thị trấn từ display hoặc address
+    @Nullable
+    private String extractWard(@Nullable String text) {
+        if (text == null) return null;
+
+        Pattern p = Pattern.compile("(Phường|Xã|Thi\\s*trấn|Thị\\s*trấn)\\s+([^,]+)",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        Matcher m = p.matcher(text);
+        if (m.find()) return (m.group(1) + " " + m.group(2)).trim();
+
+        Pattern p2 = Pattern.compile("(?i)\\bP\\.?\\s*(\\d+)\\b");
+        Matcher m2 = p2.matcher(text);
+        if (m2.find()) return ("Phường " + m2.group(1)).trim();
+
+        return null;
+    }
+
+    private String norm(@Nullable String s) {
+        if (s == null) return "";
+        String t = Normalizer.normalize(s, Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return t.trim().toLowerCase(Locale.ROOT);
+    }
+
+    // ===================== TITLE =====================
+    private void updateTitle() {
+        if (tvProvinceTitle == null) return;
+
+        if (selectedWard != null && !selectedWard.isEmpty()) {
+            tvProvinceTitle.setText("Bài viết tại " + selectedWard);
+            return;
         }
 
-        // 3. CẬP NHẬT DỮ LIỆU ĐÚNG CÁCH (Thay vì gọi setPostList)
-        postList.clear();              // Xóa dữ liệu cũ
-        postList.addAll(dummyPosts);   // Thêm dữ liệu mới
-        postAdapter.notifyDataSetChanged(); // Báo adapter vẽ lại
+        if (forceNearbyTitle || myLatLng != null) {
+            tvProvinceTitle.setText("Tin mới quanh đây (≤ 5km)");
+            return;
+        }
+
+        tvProvinceTitle.setText("Tin mới quanh đây");
+    }
+
+    // ===================== FILTER + RENDER =====================
+    private void applyFilterAndRender() {
+        List<Post> source = new ArrayList<>(allPosts);
+
+        // 1) focus marker -> 1 bài
+        if (focusedPostId != null) {
+            List<Post> only = new ArrayList<>();
+            for (Post p : source) {
+                if (p != null && focusedPostId.equals(p.getId())) {
+                    only.add(p);
+                    break;
+                }
+            }
+            postList.clear();
+            postList.addAll(only);
+            postAdapter.notifyDataSetChanged();
+            renderMarkers(only);
+            updateEmptyState(only.isEmpty());
+            return;
+        }
+
+        // 2) chọn phường -> LẤY HẾT bài thuộc phường (KHÔNG cần 5km)
+        if (selectedWard != null && !selectedWard.isEmpty()) {
+            String target = norm(selectedWard);
+            List<Post> wardPosts = new ArrayList<>();
+
+            for (Post p : source) {
+                if (p == null) continue;
+
+                String wardFromPost = extractWard(p.getAddress());
+                if (!norm(wardFromPost).isEmpty() && norm(wardFromPost).equals(target)) {
+                    wardPosts.add(p);
+                }
+            }
+
+            postList.clear();
+            postList.addAll(wardPosts);
+            postAdapter.notifyDataSetChanged();
+            renderMarkers(wardPosts);
+            updateEmptyState(wardPosts.isEmpty());
+            return;
+        }
+
+        // 3) mặc định: lọc 5km nếu có vị trí
+        if (myLatLng != null) {
+            List<Post> nearby = new ArrayList<>();
+            for (Post p : source) {
+                if (!isValidLatLng(p)) continue;
+
+                float d = distanceMeters(
+                        myLatLng.getLatitude(), myLatLng.getLongitude(),
+                        p.getLat(), p.getLng()
+                );
+                if (d <= RADIUS_METERS) nearby.add(p);
+            }
+
+            postList.clear();
+            postList.addAll(nearby);
+            postAdapter.notifyDataSetChanged();
+            renderMarkers(nearby);
+            updateEmptyState(nearby.isEmpty());
+            return;
+        }
+
+        // 4) chưa có vị trí -> show all
+        postList.clear();
+        postList.addAll(source);
+        postAdapter.notifyDataSetChanged();
+        renderMarkers(source);
+        updateEmptyState(source.isEmpty());
+    }
+
+    private void updateEmptyState(boolean empty) {
+        if (tvEmptyNearby == null) return;
+        tvEmptyNearby.setVisibility(empty ? View.VISIBLE : View.GONE);
+    }
+
+    private void renderMarkers(List<Post> posts) {
+        if (vietMapGL == null) return;
+
+        for (Marker m : markers) {
+            try { vietMapGL.removeMarker(m); } catch (Exception ignored) {}
+        }
+        markers.clear();
+        markerIdToPostId.clear();
+
+        for (Post p : posts) {
+            if (!isValidLatLng(p)) continue;
+
+            String title = safe(p.getPostType()) + " - " + shortText(p.getDescription());
+            String snippet = safe(p.getAddress());
+
+            Marker m = vietMapGL.addMarker(new MarkerOptions()
+                    .position(new LatLng(p.getLat(), p.getLng()))
+                    .title(title)
+                    .snippet(snippet));
+
+            if (m != null) {
+                markers.add(m);
+                markerIdToPostId.put(m.getId(), p.getId());
+            }
+        }
+    }
+
+    private String shortText(String s) {
+        if (s == null) return "";
+        s = s.trim();
+        if (s.length() <= 20) return s;
+        return s.substring(0, 20) + "...";
+    }
+
+    private boolean isValidLatLng(Post p) {
+        return p != null
+                && !(p.getLat() == 0 && p.getLng() == 0)
+                && p.getLat() >= -90 && p.getLat() <= 90
+                && p.getLng() >= -180 && p.getLng() <= 180;
+    }
+
+    private float distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        float[] res = new float[1];
+        Location.distanceBetween(lat1, lon1, lat2, lon2, res);
+        return res[0];
+    }
+
+    // ===================== LOCATION =====================
+    private void requestMyLocationAndRefresh() {
+        if (!hasLocationPermission()) {
+            requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            }, REQ_LOCATION);
+
+            myLatLng = null;
+            forceNearbyTitle = false;
+            updateTitle();
+            applyFilterAndRender();
+            return;
+        }
+
+        fetchLastLocationSafe();
+    }
+
+    // ✅ có fallback getCurrentLocation để tránh lastLocation null
+    @SuppressLint("MissingPermission")
+    private void fetchLastLocationSafe() {
+        try {
+            fusedClient.getLastLocation()
+                    .addOnSuccessListener(loc -> {
+                        if (loc != null) {
+                            setMyLocation(loc);
+                        } else {
+                            fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                                    .addOnSuccessListener(cur -> {
+                                        if (cur != null) setMyLocation(cur);
+                                        else {
+                                            myLatLng = null;
+                                            forceNearbyTitle = false; // fail thì bỏ ép
+                                            updateTitle();
+                                            applyFilterAndRender();
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        myLatLng = null;
+                                        forceNearbyTitle = false;
+                                        updateTitle();
+                                        applyFilterAndRender();
+                                    });
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        myLatLng = null;
+                        forceNearbyTitle = false;
+                        updateTitle();
+                        applyFilterAndRender();
+                    });
+
+        } catch (SecurityException se) {
+            myLatLng = null;
+            forceNearbyTitle = false;
+            updateTitle();
+            applyFilterAndRender();
+        }
+    }
+
+    private void setMyLocation(@NonNull Location loc) {
+        myLatLng = new LatLng(loc.getLatitude(), loc.getLongitude());
+        if (vietMapGL != null) {
+            vietMapGL.animateCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 15));
+        }
+
+        // đã có vị trí thật rồi -> bỏ ép
+        forceNearbyTitle = false;
+
+        updateTitle();
+        applyFilterAndRender();
+    }
+
+    private void moveToMyLocationAndFilter() {
+        if (!hasLocationPermission()) {
+            Toast.makeText(getContext(), "Chưa có quyền vị trí", Toast.LENGTH_SHORT).show();
+            requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            }, REQ_LOCATION);
+            return;
+        }
+        requestMyLocationAndRefresh();
+    }
+
+    @SuppressLint("MissingPermission")
+    private void enableLocationComponent(@NonNull Style style) {
+        if (vietMapGL == null) return;
+
+        locationComponent = vietMapGL.getLocationComponent();
+        if (locationComponent == null) return;
+        if (!hasLocationPermission()) return;
+
+        try {
+            LocationComponentActivationOptions options =
+                    LocationComponentActivationOptions.builder(requireContext(), style).build();
+
+            locationComponent.activateLocationComponent(options);
+            setLocationEnabledCompat(locationComponent, true);
+
+            locationComponent.setCameraMode(CameraMode.TRACKING_GPS_NORTH);
+            locationComponent.setRenderMode(RenderMode.GPS);
+        } catch (SecurityException ignored) {}
+    }
+
+    private void setLocationEnabledCompat(@NonNull Object lc, boolean enabled) {
+        try { Method m = lc.getClass().getMethod("setLocationComponentEnabled", boolean.class); m.invoke(lc, enabled); return; }
+        catch (Exception ignored) {}
+
+        try { Method m = lc.getClass().getDeclaredMethod("setLocationComponentEnabled", boolean.class); m.setAccessible(true); m.invoke(lc, enabled); return; }
+        catch (Exception ignored) {}
+
+        try { Method m = lc.getClass().getMethod("setIsLocationComponentEnabled", boolean.class); m.invoke(lc, enabled); return; }
+        catch (Exception ignored) {}
+
+        try { Field f = lc.getClass().getField("isLocationComponentEnabled"); f.setBoolean(lc, enabled); return; }
+        catch (Exception ignored) {}
+
+        try { Field f = lc.getClass().getDeclaredField("isLocationComponentEnabled"); f.setAccessible(true); f.setBoolean(lc, enabled); }
+        catch (Exception ignored) {}
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private String safe(String s) { return s == null ? "" : s; }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQ_LOCATION) {
+            boolean granted = false;
+            for (int r : grantResults) {
+                if (r == PackageManager.PERMISSION_GRANTED) { granted = true; break; }
+            }
+
+            if (granted) {
+                if (vietMapGL != null) {
+                    Style style = vietMapGL.getStyle();
+                    if (style != null) enableLocationComponent(style);
+                }
+                requestMyLocationAndRefresh();
+            } else {
+                Toast.makeText(getContext(), "Bạn chưa cấp quyền vị trí, không lọc 5km được.", Toast.LENGTH_SHORT).show();
+                myLatLng = null;
+                forceNearbyTitle = false;
+                updateTitle();
+                applyFilterAndRender();
+            }
+        }
+    }
+
+    // MapView lifecycle
+    @Override public void onStart() { super.onStart(); if (mapView != null) mapView.onStart(); }
+    @Override public void onResume() { super.onResume(); if (mapView != null) mapView.onResume(); }
+    @Override public void onPause() { super.onPause(); if (mapView != null) mapView.onPause(); }
+    @Override public void onStop() { super.onStop(); if (mapView != null) mapView.onStop(); }
+    @Override public void onLowMemory() { super.onLowMemory(); if (mapView != null) mapView.onLowMemory(); }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mapView != null) mapView.onSaveInstanceState(outState);
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        if (map != null) map.onResume();
-    }
+    public void onDestroyView() {
+        super.onDestroyView();
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (map != null) map.onPause();
+        if (pendingReverseCall != null) {
+            pendingReverseCall.cancel();
+            pendingReverseCall = null;
+        }
+
+        if (vietMapGL != null) {
+            for (Marker m : markers) {
+                try { vietMapGL.removeMarker(m); } catch (Exception ignored) {}
+            }
+        }
+        markers.clear();
+        markerIdToPostId.clear();
+
+        if (mapView != null) {
+            mapView.onDestroy();
+            mapView = null;
+        }
+        vietMapGL = null;
     }
 }

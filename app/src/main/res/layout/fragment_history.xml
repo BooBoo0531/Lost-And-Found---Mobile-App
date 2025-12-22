@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvHistory"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="12dp"
+        android:clipToPadding="false" />
+
+    <ProgressBar
+        android:id="@+id/progressBarHistory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center" />
+
+    <LinearLayout
+        android:id="@+id/layoutEmptyHistory"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvEmptyHistory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bạn chưa đăng bài viết nào."
+            android:textSize="16sp"
+            android:textColor="#444444"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tvGoNewsFeed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bấm để xem bài đăng"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#F07A7A"
+            android:paddingTop="12dp" />
+    </LinearLayout>
+
+</FrameLayout>

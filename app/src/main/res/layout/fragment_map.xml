@@ -6,12 +6,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <org.osmdroid.views.MapView
+    <vn.vietmap.vietmapsdk.maps.MapView
         android:id="@+id/map"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clickable="true"
-        android:focusable="true" />
+        app:vietmap_cameraZoom="1"
+        android:visibility="visible"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHeight_percent="1"/>
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
@@ -60,6 +63,7 @@
         android:id="@+id/bottomSheetContainer"
         android:layout_width="match_parent"
         android:layout_height="450dp"
+        android:layout_gravity="bottom"
         android:orientation="vertical"
         android:background="@drawable/bg_bottom_sheet_rounded"
         android:elevation="16dp"
@@ -85,6 +89,16 @@
             android:textColor="#333333"
             android:paddingHorizontal="16dp"
             android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvEmptyNearby"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Không có tin nào quanh đây"
+            android:textColor="#777777"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvPostsLocation"

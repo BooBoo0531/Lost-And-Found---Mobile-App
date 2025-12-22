@@ -159,8 +159,35 @@
                 android:gravity="center"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true">
-                <ImageView android:id="@+id/nav_notification" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_notification" app:tint="#555555"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Notify" android:textSize="10sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <ImageView
+                        android:id="@+id/nav_notification"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_notification"
+                        android:layout_gravity="center"
+                        app:tint="#555555"/>
+
+                    <View
+                        android:id="@+id/viewNotifyDot"
+                        android:layout_width="9dp"
+                        android:layout_height="9dp"
+                        android:layout_gravity="end|top"
+                        android:background="@drawable/bg_dot_red"
+                        android:visibility="gone"/>
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Notify"
+                    android:textSize="10sp"
+                    android:textColor="#555555"
+                    android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
             <LinearLayout

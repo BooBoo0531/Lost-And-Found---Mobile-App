@@ -46,7 +46,6 @@ public class Setting extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Register launcher safely in onCreate
         imagePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.GetContent(),
                 new ActivityResultCallback<Uri>() {
@@ -62,16 +61,12 @@ public class Setting extends Fragment {
                                 imgAvatar.setImageURI(uri);
                             }
 
-                            // get bitmap via requireActivity() to avoid null
                             android.graphics.Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireActivity().getContentResolver(), uri);
 
-                            // resize to smaller avatar size (reduce DB payload)
                             android.graphics.Bitmap scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 400, 400, true);
 
-                            // compress more (50 -> 40 helps)
                             String imageString = ImageUtil.bitmapToBase64(scaled);
 
-                            // save to Realtime DB (be aware of size limits; prefer storing file path if large)
                             FirebaseUser user = mAuth.getCurrentUser();
                             if (user != null) {
                                 DatabaseReference userRef = FirebaseDatabase.getInstance(
@@ -100,7 +95,6 @@ public class Setting extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.activity_setting, container, false);
 
-        // map views
         tvUserEmail = view.findViewById(R.id.tvUserEmail);
         tvUserPhone = view.findViewById(R.id.tvUserPhone);
 
