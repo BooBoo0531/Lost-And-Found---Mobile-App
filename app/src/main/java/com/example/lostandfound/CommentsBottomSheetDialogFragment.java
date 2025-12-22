@@ -67,12 +67,10 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
     private LinearLayout replyBar;
     private TextView tvReplyingTo, btnCancelReply;
 
-    // reply state
     private String replyToId = "";
     private String replyToName = "";
     private String replyToUserId = "";
 
-    // post owner cache
     private String postOwnerId = "";
 
     private final ActivityResultLauncher<String> pickImageLauncher =
@@ -109,7 +107,6 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
 
         adapter = new CommentAdapter(requireContext(), displayList, usersRef, c -> {
-            // reply mode
             replyToId = (c.id == null) ? "" : c.id;
             replyToName = (c.userEmail == null) ? "" : c.userEmail;
             replyToUserId = (c.userId == null) ? "" : c.userId;
@@ -164,7 +161,6 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
                             if (c.id == null || c.id.trim().isEmpty()) c.id = child.getKey();
 
-                            // fallback DB cũ lưu "text"
                             if ((c.content == null || c.content.trim().isEmpty())
                                     && child.child("text").exists()) {
                                 String oldText = child.child("text").getValue(String.class);
@@ -230,7 +226,6 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
         commentsRef.child(id).setValue(c)
                 .addOnSuccessListener(unused -> {
-                    // ✅ gửi notify sau khi comment thành công
                     if (TextUtils.isEmpty(parentId)) {
                         notifyPostOwnerForNewComment(c);
                     } else {
@@ -248,13 +243,10 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 });
     }
 
-    // ===================== NOTIFICATIONS =====================
-
     private void notifyPostOwnerForNewComment(@NonNull Comment c) {
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) return;
 
-        // Nếu chưa có postOwnerId thì đọc lại
         if (TextUtils.isEmpty(postOwnerId) && postsRef != null && !TextUtils.isEmpty(postId)) {
             postsRef.child(postId).child("userId")
                     .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -270,7 +262,6 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
         if (TextUtils.isEmpty(postOwnerId)) return;
 
-        // ✅ test nhớ: nếu bạn tự comment bài của bạn thì sẽ KHÔNG notify (tránh tự spam)
         if (postOwnerId.equals(me.getUid())) return;
 
         pushNotification(postOwnerId, "COMMENT", c);
@@ -280,9 +271,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) return;
 
-        // replyToUserId lấy từ comment được bấm "Trả lời"
         if (TextUtils.isEmpty(replyToUserId)) {
-            // fallback: đọc parent comment để lấy userId
             if (!TextUtils.isEmpty(c.parentId)) {
                 commentsRef.child(c.parentId).child("userId")
                         .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -323,7 +312,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 type,
                 snippet,
                 System.currentTimeMillis(),
-                false // ✅ isRead=false để badge hoạt động
+                false
         );
 
         notificationsRootRef.child(toUserId).child(notiId).setValue(item)

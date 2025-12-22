@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -34,6 +35,10 @@ import java.util.Calendar;
 
 public class PostActivity extends AppCompatActivity {
 
+    public static final String EXTRA_MODE = "MODE";
+    public static final String MODE_EDIT = "EDIT";
+    public static final String EXTRA_POST = "EXTRA_POST";
+
     private MaterialToolbar toolbarPost;
     private SwitchMaterial switchLoadImage;
     private ImageView imgPreview;
@@ -49,10 +54,14 @@ public class PostActivity extends AppCompatActivity {
     private DatabaseReference databaseReference;
     private FirebaseAuth mAuth;
 
+    private boolean isEditMode = false;
+    private String editingPostId = "";
+    private String existingImageBase64 = "";
+    private Post editingPost;
+
     private ActivityResultLauncher<String> imagePickerLauncher;
     private ActivityResultLauncher<Intent> locationPickerLauncher;
 
-    // ✅ THÊM: lưu tọa độ pick
     private double pickedLat = 0;
     private double pickedLng = 0;
 
@@ -76,7 +85,103 @@ public class PostActivity extends AppCompatActivity {
         registerImagePicker();
         registerLocationPicker();
         setupLogic();
+
+        handleEditModeIfAny();
     }
+
+    private void handleEditModeIfAny() {
+        String mode = getIntent().getStringExtra(EXTRA_MODE);
+        isEditMode = MODE_EDIT.equalsIgnoreCase(mode);
+        if (!isEditMode) return;
+
+        editingPost = readPostFromIntent();
+        if (editingPost == null) {
+            Toast.makeText(this, "Thiếu dữ liệu bài viết để sửa", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        FirebaseUser u = mAuth.getCurrentUser();
+        if (u == null || (!safe(editingPost.getUserId()).isEmpty() && !u.getUid().equals(editingPost.getUserId()))) {
+            String email = safe(u != null ? u.getEmail() : "");
+            if (email.isEmpty() || !email.equalsIgnoreCase(safe(editingPost.getUserEmail()))) {
+                Toast.makeText(this, "Bạn không có quyền chỉnh sửa bài viết này", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+        }
+
+        editingPostId = safe(editingPost.getId());
+        if (editingPostId.isEmpty()) {
+            Toast.makeText(this, "Không tìm thấy postId để sửa", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        postType = safe(editingPost.getPostType());
+        if (postType.isEmpty()) postType = "LOST";
+        configureUIByType();
+
+        fillFormForEdit(editingPost);
+
+        if (toolbarPost != null) toolbarPost.setTitle("Chỉnh sửa bài viết");
+        if (btnSubmitPost != null) btnSubmitPost.setText("LƯU THAY ĐỔI");
+    }
+
+    private Post readPostFromIntent() {
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                return getIntent().getSerializableExtra(EXTRA_POST, Post.class);
+            } else {
+                return (Post) getIntent().getSerializableExtra(EXTRA_POST);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void fillFormForEdit(@NonNull Post post) {
+        if (edtDescription != null) {
+            String desc = safe(post.getDescription());
+            String[] parsed = extractTransactionPlace(desc);
+            edtDescription.setText(parsed[0]);
+            if (edtTransactionPlace != null && !parsed[1].isEmpty()) {
+                edtTransactionPlace.setText(parsed[1]);
+            }
+        }
+        if (edtLocation != null) edtLocation.setText(safe(post.getAddress()));
+        if (edtContact != null) edtContact.setText(safe(post.getContact()));
+        if (edtPickTime != null) edtPickTime.setText(safe(post.getTimePosted()));
+
+        pickedLat = post.getLat();
+        pickedLng = post.getLng();
+
+        existingImageBase64 = safe(post.getImageBase64());
+        if (!existingImageBase64.isEmpty()) {
+            Bitmap bmp = ImageUtil.base64ToBitmap(existingImageBase64);
+            if (bmp != null && imgPreview != null) {
+                imgPreview.setVisibility(View.VISIBLE);
+                imgPreview.setImageBitmap(bmp);
+            }
+        }
+    }
+
+    private String[] extractTransactionPlace(String desc) {
+        String d = safe(desc);
+        String tx = "";
+        int idx = d.lastIndexOf("(Giao dịch tại:");
+        if (idx >= 0) {
+            int end = d.lastIndexOf(")");
+            if (end > idx) {
+                String inside = d.substring(idx + "(Giao dịch tại:".length(), end).trim();
+                tx = inside;
+                d = (d.substring(0, idx)).trim();
+            }
+        }
+        return new String[]{d, tx};
+    }
+
+    private String safe(String s) { return s == null ? "" : s; }
 
     private void initViews() {
         toolbarPost = findViewById(R.id.toolbarPost);
@@ -233,9 +338,9 @@ public class PostActivity extends AppCompatActivity {
         }
 
         btnSubmitPost.setEnabled(false);
-        btnSubmitPost.setText("Đang gửi...");
+        btnSubmitPost.setText(isEditMode ? "Đang lưu..." : "Đang gửi...");
 
-        String imageBase64 = "";
+        String imageBase64 = isEditMode ? existingImageBase64 : "";
         if (selectedImageUri != null) {
             try {
                 Bitmap bitmap;
@@ -273,6 +378,14 @@ public class PostActivity extends AppCompatActivity {
             return;
         }
 
+        if (isEditMode) {
+            updateExistingPost(description, timePosted, imageBase64, contact, address);
+        } else {
+            createNewPost(description, timePosted, imageBase64, contact, address);
+        }
+    }
+
+    private void createNewPost(String description, String timePosted, String imageBase64, String contact, String address) {
         FirebaseUser currentUser = mAuth.getCurrentUser();
         String userEmail = (currentUser != null) ? currentUser.getEmail() : "Ẩn danh";
         String userId = (currentUser != null) ? currentUser.getUid() : "";
@@ -297,7 +410,6 @@ public class PostActivity extends AppCompatActivity {
                 address
         );
 
-        // ✅ set lat/lng vào post (Map dùng để lọc 5km)
         newPost.setLat(pickedLat);
         newPost.setLng(pickedLng);
 
@@ -315,6 +427,53 @@ public class PostActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show();
                         btnSubmitPost.setEnabled(true);
                         btnSubmitPost.setText("ĐĂNG BÀI NGAY");
+                    }
+                });
+    }
+
+    private void updateExistingPost(String description, String timePosted, String imageBase64, String contact, String address) {
+        if (editingPost == null || editingPostId.isEmpty()) {
+            Toast.makeText(this, "Thiếu dữ liệu để cập nhật", Toast.LENGTH_SHORT).show();
+            btnSubmitPost.setEnabled(true);
+            btnSubmitPost.setText("LƯU THAY ĐỔI");
+            return;
+        }
+
+        // giữ nguyên owner
+        String userId = safe(editingPost.getUserId());
+        String userEmail = safe(editingPost.getUserEmail());
+        if (userEmail.isEmpty()) {
+            FirebaseUser u = mAuth.getCurrentUser();
+            userEmail = safe(u != null ? u.getEmail() : "");
+        }
+
+        Post updated = new Post(
+                editingPostId,
+                userId,
+                userEmail,
+                timePosted,
+                description,
+                postType,
+                imageBase64,
+                contact,
+                address
+        );
+
+        updated.setLat(pickedLat);
+        updated.setLng(pickedLng);
+
+        databaseReference.child(editingPostId).setValue(updated)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Toast.makeText(PostActivity.this, "Cập nhật bài viết thành công!", Toast.LENGTH_SHORT).show();
+                        setResult(RESULT_OK);
+                        finish();
+                    } else {
+                        Toast.makeText(PostActivity.this,
+                                "Cập nhật thất bại: " + (task.getException() != null ? task.getException().getMessage() : "Không rõ"),
+                                Toast.LENGTH_SHORT).show();
+                        btnSubmitPost.setEnabled(true);
+                        btnSubmitPost.setText("LƯU THAY ĐỔI");
                     }
                 });
     }

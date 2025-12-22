@@ -36,7 +36,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     private final DatabaseReference usersRef;
     private final OnItemClick onItemClick;
 
-    // cache để không tải user lặp lại
     private final Map<String, UserCache> cache = new HashMap<>();
 
     public NotificationAdapter(Context context,
@@ -52,7 +51,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // ✅ nhớ đúng tên layout bạn đang dùng:
         View v = LayoutInflater.from(context).inflate(R.layout.item_notification, parent, false);
         return new VH(v);
     }
@@ -67,26 +65,21 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
                 : "Ai đó";
         h.tvName.setText(email);
 
-        // ✅ nội dung tin nhắn thông báo
         String msg = (item.content == null) ? "" : item.content.trim();
         h.tvContent.setText(msg);
 
-        // time
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                 .format(new Date(item.timestamp));
         h.tvTime.setText(time);
 
-        // unread UI
         boolean unread = !item.isRead;
         h.tvUnreadDot.setVisibility(unread ? View.VISIBLE : View.GONE);
         h.tvName.setTypeface(null, unread ? Typeface.BOLD : Typeface.NORMAL);
 
-        // avatar default
         h.imgAvatar.setImageResource(R.drawable.ic_notification);
         h.imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
         h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-        // ✅ load tên + avatar từ /users/{fromUserId}
         bindUser(h, item);
 
         h.root.setOnClickListener(v -> {
@@ -96,18 +89,15 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     private void bindUser(@NonNull VH h, @NonNull NotificationItem item) {
 
-        // luôn hiển thị email
         String email = (item.fromEmail != null && !item.fromEmail.trim().isEmpty())
                 ? item.fromEmail.trim()
                 : "";
         if (!email.isEmpty()) h.tvName.setText(email);
 
-        // avatar default
         h.imgAvatar.setImageResource(R.drawable.ic_notification);
         h.imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
         h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-        // ✅ 1) Ưu tiên load avatar theo fromUserId
         String uid = item.fromUserId;
         if (uid != null && !uid.trim().isEmpty() && usersRef != null) {
             h.imgAvatar.setTag("uid:" + uid);
@@ -134,7 +124,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             return;
         }
 
-        // ✅ 2) FALLBACK: không có uid -> tìm user theo email để lấy avatar
         if (usersRef == null || email.isEmpty()) return;
 
         h.imgAvatar.setTag("email:" + email);
@@ -155,7 +144,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
                                 h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                                 h.imgAvatar.setImageBitmap(bmp);
                             }
-                            break; // lấy user đầu tiên match email
+                            break;
                         }
                     }
 

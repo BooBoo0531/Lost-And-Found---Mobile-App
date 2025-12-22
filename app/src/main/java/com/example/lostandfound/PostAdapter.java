@@ -1,16 +1,19 @@
 package com.example.lostandfound;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -33,6 +36,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
 
     private final DatabaseReference usersRef;
     private final DatabaseReference commentsRootRef;
+    private final DatabaseReference rootRef;
 
     public PostAdapter(Context context, List<Post> postList) {
         this.context = context;
@@ -40,6 +44,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
         usersRef = db.getReference("users");
         commentsRootRef = db.getReference("comments");
+        rootRef = db.getReference();
     }
 
     @NonNull
@@ -53,14 +58,12 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     public void onBindViewHolder(@NonNull PostViewHolder holder, int position) {
         Post post = postList.get(position);
 
-        // đảm bảo id không null (dữ liệu cũ)
         String postId = safe(post.getId());
 
         holder.tvUserName.setText(safe(post.getUserEmail()));
         holder.tvTime.setText(safe(post.getTimePosted()));
         holder.tvContent.setText(safe(post.getDescription()));
 
-        // ✅ address + contact
         String addr = safe(post.getAddress());
         if (addr.isEmpty()) {
             holder.tvAddress.setVisibility(View.GONE);
@@ -77,7 +80,6 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             holder.tvContact.setText("☎ Liên hệ: " + contact);
         }
 
-        // LOST / FOUND
         if ("LOST".equalsIgnoreCase(post.getPostType())) {
             holder.tvStatus.setText("LOST");
             holder.tvStatus.setTextColor(0xFFD32F2F);
@@ -88,7 +90,6 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             holder.tvStatus.setBackgroundColor(0xFFE8F5E9);
         }
 
-        // Image post
         if (post.getImageBase64() != null && !post.getImageBase64().isEmpty()) {
             Bitmap bmp = ImageUtil.base64ToBitmap(post.getImageBase64());
             if (bmp != null) {
@@ -101,18 +102,14 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             holder.imgPostImage.setVisibility(View.GONE);
         }
 
-        // Avatar
         bindAvatar(holder, post.getUserId());
 
-        // ✅ comment count realtime
         bindCommentCount(holder, postId);
 
-        // ✅ open bottom sheet
         View.OnClickListener open = v -> openComments(postId);
         holder.tvViewAllComments.setOnClickListener(open);
         holder.etComment.setOnClickListener(open);
 
-        // send quick comment (không ảnh) hoặc mở sheet nếu rỗng
         holder.btnSendComment.setOnClickListener(v -> {
             String text = holder.etComment.getText() != null ? holder.etComment.getText().toString().trim() : "";
             if (text.isEmpty()) {
@@ -121,12 +118,102 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
                 quickSendComment(postId, text, () -> holder.etComment.setText(""));
             }
         });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (!isOwner(post)) {
+                Toast.makeText(context, "Chỉ chủ bài viết mới được Edit / Delete", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            showOwnerMenu(v, post);
+            return true;
+        });
+    }
+
+    private boolean isOwner(Post post) {
+        FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
+        if (u == null || post == null) return false;
+
+        String uid = u.getUid();
+        String postUid = safe(post.getUserId());
+        if (!postUid.isEmpty() && postUid.equals(uid)) return true;
+
+        String email = safe(u.getEmail());
+        String postEmail = safe(post.getUserEmail());
+        return !email.isEmpty() && email.equalsIgnoreCase(postEmail);
+    }
+
+    private void showOwnerMenu(@NonNull View anchor, @NonNull Post post) {
+        PopupMenu popup = new PopupMenu(context, anchor);
+
+        final int MENU_EDIT = 1;
+        final int MENU_DELETE = 2;
+
+        popup.getMenu().add(0, MENU_EDIT, 0, "Edit");
+        popup.getMenu().add(0, MENU_DELETE, 1, "Delete post");
+
+        popup.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == MENU_EDIT) {
+                openEditPost(post);
+                return true;
+            } else if (id == MENU_DELETE) {
+                confirmDelete(post);
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void openEditPost(@NonNull Post post) {
+        Intent i = new Intent(context, PostActivity.class);
+        i.putExtra(PostActivity.EXTRA_MODE, PostActivity.MODE_EDIT);
+        i.putExtra(PostActivity.EXTRA_POST, post);
+
+        i.putExtra("POST_TYPE", safe(post.getPostType()));
+        context.startActivity(i);
+    }
+
+    private void confirmDelete(@NonNull Post post) {
+        new AlertDialog.Builder(context)
+                .setTitle("Xóa bài viết")
+                .setMessage("Bạn chắc chắn muốn xóa bài viết này không?\n(Hành động này không thể hoàn tác)")
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Xóa", (d, w) -> deletePost(post))
+                .show();
+    }
+
+    private void deletePost(@NonNull Post post) {
+        String postId = safe(post.getId());
+        if (postId.isEmpty()) {
+            Toast.makeText(context, "Không tìm thấy postId để xóa", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!isOwner(post)) {
+            Toast.makeText(context, "Bạn không có quyền xóa bài viết này", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        java.util.Map<String, Object> updates = new java.util.HashMap<>();
+        updates.put("posts/" + postId, null);
+        updates.put("comments/" + postId, null);
+
+        rootRef.updateChildren(updates).addOnCompleteListener(t -> {
+            if (t.isSuccessful()) {
+                Toast.makeText(context, "Đã xóa bài viết", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(context,
+                        "Xóa thất bại: " + (t.getException() != null ? t.getException().getMessage() : "Không rõ"),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
     public void onViewRecycled(@NonNull PostViewHolder holder) {
         super.onViewRecycled(holder);
-        // remove comment listener tránh leak + sai count
         if (holder.commentCountRef != null && holder.commentCountListener != null) {
             holder.commentCountRef.removeEventListener(holder.commentCountListener);
         }
@@ -135,7 +222,6 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     }
 
     private void bindCommentCount(@NonNull PostViewHolder holder, String postId) {
-        // clear listener cũ
         if (holder.commentCountRef != null && holder.commentCountListener != null) {
             holder.commentCountRef.removeEventListener(holder.commentCountListener);
         }
@@ -253,7 +339,6 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         ImageView btnSendComment;
         ImageView imgPostImage, imgAvatar;
 
-        // comment count listener
         DatabaseReference commentCountRef;
         ValueEventListener commentCountListener;
 
