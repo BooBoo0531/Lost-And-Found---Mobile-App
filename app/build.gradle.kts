@@ -76,6 +76,8 @@ dependencies {
     // 6. Google Sign In cũ (Ổn định)
     implementation("com.google.android.gms:play-services-auth:21.0.0")
 
+    implementation("com.google.mlkit:image-labeling:17.0.7")
+
 
     // 7. Testing
     testImplementation("junit:junit:4.13.2")

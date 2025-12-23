@@ -18,7 +18,6 @@
         android:orientation="vertical"
         android:paddingBottom="10dp">
 
-        <!-- Header -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -81,7 +80,6 @@
                 android:paddingVertical="6dp" />
         </LinearLayout>
 
-        <!-- Content -->
         <TextView
             android:id="@+id/tvContent"
             android:layout_width="match_parent"
@@ -93,7 +91,6 @@
             android:textSize="15sp"
             android:lineSpacingExtra="4dp"/>
 
-        <!-- ✅ Address (địa điểm mất/nhặt) -->
         <TextView
             android:id="@+id/tvAddress"
             android:layout_width="match_parent"
@@ -104,7 +101,6 @@
             android:textColor="#444444"
             android:textSize="13sp" />
 
-        <!-- ✅ Contact -->
         <TextView
             android:id="@+id/tvContact"
             android:layout_width="match_parent"
@@ -115,7 +111,6 @@
             android:textColor="#444444"
             android:textSize="13sp" />
 
-        <!-- Image -->
         <ImageView
             android:id="@+id/imgPostImage"
             android:layout_width="match_parent"
@@ -126,7 +121,20 @@
             android:background="#F8F8F8"
             android:src="@android:drawable/ic_menu_gallery"/>
 
-        <!-- ✅ View all comments -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnContactUser"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="8dp"
+            android:text="Nhắn tin nhận đồ"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            app:icon="@android:drawable/ic_menu_send"
+            app:iconTint="#FFFFFF"
+            app:iconGravity="textStart"
+            app:backgroundTint="#2196F3"
+            android:visibility="gone" />
         <TextView
             android:id="@+id/tvViewAllComments"
             android:layout_width="match_parent"
@@ -144,7 +152,6 @@
             android:layout_height="1dp"
             android:background="#EEEEEE" />
 
-        <!-- Comment composer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

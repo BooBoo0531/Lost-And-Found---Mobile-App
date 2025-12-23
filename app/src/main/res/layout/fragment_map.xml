@@ -28,24 +28,49 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center_vertical"
             android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:paddingHorizontal="16dp">
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_search"
-                app:tint="#757575"/>
+                android:src="@drawable/ic_search"
+                app:tint="#999999"/>
 
-            <TextView
-                android:id="@+id/tvSearchMap"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+            <EditText
+                android:id="@+id/edtSearchMap"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent"
                 android:layout_marginStart="12dp"
-                android:text="Tìm kiếm đồ vật thất lạc..."
-                android:textColor="#757575"
-                android:textSize="16sp"/>
+                android:background="@null"
+                android:hint="Tìm đồ thất lạc..."
+                android:textColorHint="#999999"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:singleLine="true"
+                android:imeOptions="actionSearch"
+                android:fontFamily="sans-serif-medium"/>
+
+            <ImageView
+                android:id="@+id/btnClearSearch"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#999999"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <ImageView
+                android:id="@+id/btnCameraSearch"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_camera"
+                app:tint="#F07A7A"
+                android:clickable="true"
+                android:focusable="true"/>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

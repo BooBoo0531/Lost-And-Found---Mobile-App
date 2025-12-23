@@ -28,14 +28,11 @@
         android:theme="@style/Theme.LostAndFound"
         tools:targetApi="31">
         <activity
-            android:name=".HistoryFragment"
-            android:exported="false" />
+            android:name=".ChatActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".PickLocationActivity"
             android:exported="false"></activity>
-        <activity
-            android:name=".Setting"
-            android:exported="false" />
         <activity
             android:name=".ForgotPasswordActivity"
             android:exported="false" />

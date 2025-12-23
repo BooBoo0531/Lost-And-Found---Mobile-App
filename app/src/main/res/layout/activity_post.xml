@@ -66,19 +66,19 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSelectImage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Chọn ảnh từ thư viện"
-                android:textColor="#F07A7A"
                 android:textStyle="bold"
-                android:backgroundTint="#FFF0F0"
+                android:textColor="#F07A7A"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 app:icon="@android:drawable/ic_menu_camera"
                 app:iconTint="#F07A7A"
+                android:backgroundTint="#FFF0F0"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="24dp"/>
+                android:layout_marginBottom="24dp" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/switchLoadImage"
@@ -88,6 +88,7 @@
                 android:visibility="gone"/>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Bạn muốn nhắn gửi gì?"
@@ -137,6 +138,7 @@
             <View android:layout_width="match_parent" android:layout_height="16dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilPickTime"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Thời gian xảy ra"
@@ -160,6 +162,7 @@
             <View android:layout_width="match_parent" android:layout_height="16dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilContact"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="SĐT liên hệ (Zalo/Phone)"
@@ -180,6 +183,7 @@
             <View android:layout_width="match_parent" android:layout_height="16dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilTransactionPlace"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Địa điểm nhận lại đồ (nếu có)"
@@ -197,7 +201,7 @@
                     android:inputType="text"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSubmitPost"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
@@ -208,7 +212,7 @@
                 android:layout_marginBottom="20dp"
                 android:backgroundTint="#F07A7A"
                 app:cornerRadius="28dp"
-                android:elevation="4dp"/>
+                android:elevation="4dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
