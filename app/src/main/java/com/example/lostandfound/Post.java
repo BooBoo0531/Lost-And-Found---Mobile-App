@@ -140,7 +140,6 @@ public class Post implements Serializable {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    // ✅ lat/lng
     public double getLat() { return lat; }
     public void setLat(double lat) { this.lat = lat; }
 

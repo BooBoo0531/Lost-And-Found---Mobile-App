@@ -71,7 +71,6 @@ public class NotificationFragment extends Fragment {
                 notifyRef.child(item.id).child("isRead").setValue(true);
             }
 
-            // ✅ Bấm vào thông báo -> mở chi tiết (tên + avatar + nội dung)
             try {
                 NotificationDetailBottomSheetDialogFragment.newInstance(item)
                         .show(requireActivity().getSupportFragmentManager(), "NOTI_DETAIL");

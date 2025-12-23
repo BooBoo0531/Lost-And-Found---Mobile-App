@@ -125,7 +125,7 @@ public class NewsFeedFragment extends Fragment {
 
                 hasLoadedOnce = true;
 
-                // ✅ Đẩy danh sách lên ViewModel để MapFragment/NewsFeed cùng thấy
+                //Đẩy danh sách lên ViewModel để MapFragment/NewsFeed
                 postVM.setPosts(latest);
 
                 // UI
