@@ -112,7 +112,7 @@ public class Setting extends Fragment {
 
         cardAvatar.setOnClickListener(v -> showChangeAvatarDialog());
 
-        btnMyPosts.setOnClickListener(v -> Toast.makeText(requireContext(), "Feature coming soon", Toast.LENGTH_SHORT).show());
+        btnMyPosts.setOnClickListener(v -> openHistoryFragment());
 
         btnChangePassword.setOnClickListener(v -> {
             if (mAuth.getCurrentUser() != null) {
@@ -206,6 +206,13 @@ public class Setting extends Fragment {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    private void openHistoryFragment() {
+        getParentFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, new HistoryFragment())
+                .addToBackStack("history")
+                .commit();
     }
 
 }
