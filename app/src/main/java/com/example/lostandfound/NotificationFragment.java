@@ -66,12 +66,10 @@ public class NotificationFragment extends Fragment {
         usersRef = db.getReference("users");
 
         adapter = new NotificationAdapter(requireContext(), list, usersRef, item -> {
-            // mark read
             if (notifyRef != null && item.id != null && !item.id.isEmpty()) {
                 notifyRef.child(item.id).child("isRead").setValue(true);
             }
 
-            // ✅ Bấm vào thông báo -> mở chi tiết (tên + avatar + nội dung)
             try {
                 NotificationDetailBottomSheetDialogFragment.newInstance(item)
                         .show(requireActivity().getSupportFragmentManager(), "NOTI_DETAIL");

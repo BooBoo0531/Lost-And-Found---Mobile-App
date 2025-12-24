@@ -20,8 +20,8 @@ public class SharedPostViewModel extends ViewModel {
         ArrayList<Post> newList = new ArrayList<>();
         if (current != null) newList.addAll(current);
 
-        newList.add(0, p);            // bài mới lên đầu
-        posts.setValue(newList);      // ✅ PHẢI setValue thì observer mới chạy
+        newList.add(0, p);
+        posts.setValue(newList);
     }
 
     public void setPosts(List<Post> list) {

@@ -64,15 +64,13 @@ import vn.vietmap.vietmapsdk.maps.VietMapGL;
 public class MapFragment extends Fragment
         implements OnMapReadyCallback, VietMapGL.OnMapClickListener {
 
-    // Tile key: hiển thị bản đồ
     private static final String STYLE_URL =
             "https://maps.vietmap.vn/api/maps/light/styles.json?apikey=f77a52c999a3400b244172210d4a0ebabb2f0c43926e1d45";
 
-    // Service key: reverse geocode
     private static final String SERVICES_KEY =
             "ba1cf0075ef140e2bccc1b2a4392454a11e042a82fb7674a";
 
-    private static final float RADIUS_METERS = 5000f; // 5km
+    private static final float RADIUS_METERS = 5000f;
     private static final int REQ_LOCATION = 1101;
 
     private MapView mapView;
@@ -97,15 +95,13 @@ public class MapFragment extends Fragment
     private final List<Marker> markers = new ArrayList<>();
     private final Map<Long, String> markerIdToPostId = new HashMap<>();
 
-    private String focusedPostId = null; // focus 1 bài theo marker
-    private String selectedWard = null;  // lọc theo phường (tap map)
+    private String focusedPostId = null;
+    private String selectedWard = null;
 
-    // ✅ bấm định vị thì title lên ngay “≤5km” dù chưa lấy xong location
     private boolean forceNearbyTitle = false;
 
     private SharedPostViewModel postVM;
 
-    // OkHttp reverse
     private final OkHttpClient httpClient = new OkHttpClient();
     private Call pendingReverseCall = null;
 
@@ -124,29 +120,24 @@ public class MapFragment extends Fragment
 
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
-        // BottomSheet
         LinearLayout bottomSheetPanel = view.findViewById(R.id.bottomSheetContainer);
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetPanel);
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
-        // Views
         tvProvinceTitle = view.findViewById(R.id.tvProvinceTitle);
         tvEmptyNearby = view.findViewById(R.id.tvEmptyNearby);
         btnMyLocation = view.findViewById(R.id.btnMyLocation);
         tvSearch = view.findViewById(R.id.tvSearchMap);
 
-        // Recycler
         rvPosts = view.findViewById(R.id.rvPostsLocation);
         rvPosts.setLayoutManager(new LinearLayoutManager(getContext()));
         postAdapter = new PostAdapter(requireContext(), postList);
         rvPosts.setAdapter(postAdapter);
 
-        // MapView
         mapView = view.findViewById(R.id.map);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
-        // ViewModel: lấy danh sách bài
         postVM = new ViewModelProvider(requireActivity()).get(SharedPostViewModel.class);
         postVM.getPosts().observe(getViewLifecycleOwner(), posts -> {
             allPosts.clear();
@@ -154,13 +145,10 @@ public class MapFragment extends Fragment
             applyFilterAndRender();
         });
 
-        // Buttons
         btnMyLocation.setOnClickListener(v -> {
-            // clear filter
             focusedPostId = null;
             selectedWard = null;
 
-            // ✅ ép title hiện 5km ngay khi bấm
             forceNearbyTitle = true;
             updateTitle();
 
@@ -172,7 +160,6 @@ public class MapFragment extends Fragment
                 Toast.makeText(getContext(), "Mở màn hình tìm kiếm...", Toast.LENGTH_SHORT).show()
         );
 
-        // Kéo sheet về collapsed -> thoát filter (phường + marker)
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override public void onStateChanged(@NonNull View bottomSheet, int newState) {
                 if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
@@ -200,14 +187,11 @@ public class MapFragment extends Fragment
             focusedPostId = null;
             updateTitle();
 
-            // add listener sau khi style ready
             vietMapGL.addOnMapClickListener(MapFragment.this);
 
-            // lấy vị trí => lọc 5km
             requestMyLocationAndRefresh();
         });
 
-        // Marker click: focus 1 bài
         vietMapGL.setOnMarkerClickListener(marker -> {
             String postId = markerIdToPostId.get(marker.getId());
             if (postId != null) {
@@ -221,12 +205,10 @@ public class MapFragment extends Fragment
         });
     }
 
-    // Tap map -> reverse -> lấy phường -> lọc (LẤY HẾT, không cần 5km)
     @Override
     public boolean onMapClick(@NonNull LatLng point) {
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
 
-        // tap map thì bỏ ép title 5km
         forceNearbyTitle = false;
 
         focusedPostId = null;
@@ -237,7 +219,6 @@ public class MapFragment extends Fragment
         return true;
     }
 
-    // ===================== REVERSE (V3) =====================
     private void reverseWard(@NonNull LatLng point) {
         if (pendingReverseCall != null) pendingReverseCall.cancel();
 
@@ -290,7 +271,6 @@ public class MapFragment extends Fragment
         });
     }
 
-    // Tách phường/xã/thị trấn từ display hoặc address
     @Nullable
     private String extractWard(@Nullable String text) {
         if (text == null) return null;
@@ -314,7 +294,6 @@ public class MapFragment extends Fragment
         return t.trim().toLowerCase(Locale.ROOT);
     }
 
-    // ===================== TITLE =====================
     private void updateTitle() {
         if (tvProvinceTitle == null) return;
 
@@ -331,11 +310,9 @@ public class MapFragment extends Fragment
         tvProvinceTitle.setText("Tin mới quanh đây");
     }
 
-    // ===================== FILTER + RENDER =====================
     private void applyFilterAndRender() {
         List<Post> source = new ArrayList<>(allPosts);
 
-        // 1) focus marker -> 1 bài
         if (focusedPostId != null) {
             List<Post> only = new ArrayList<>();
             for (Post p : source) {
@@ -352,7 +329,6 @@ public class MapFragment extends Fragment
             return;
         }
 
-        // 2) chọn phường -> LẤY HẾT bài thuộc phường (KHÔNG cần 5km)
         if (selectedWard != null && !selectedWard.isEmpty()) {
             String target = norm(selectedWard);
             List<Post> wardPosts = new ArrayList<>();
@@ -374,7 +350,6 @@ public class MapFragment extends Fragment
             return;
         }
 
-        // 3) mặc định: lọc 5km nếu có vị trí
         if (myLatLng != null) {
             List<Post> nearby = new ArrayList<>();
             for (Post p : source) {
@@ -395,7 +370,6 @@ public class MapFragment extends Fragment
             return;
         }
 
-        // 4) chưa có vị trí -> show all
         postList.clear();
         postList.addAll(source);
         postAdapter.notifyDataSetChanged();
@@ -455,7 +429,6 @@ public class MapFragment extends Fragment
         return res[0];
     }
 
-    // ===================== LOCATION =====================
     private void requestMyLocationAndRefresh() {
         if (!hasLocationPermission()) {
             requestPermissions(new String[]{
@@ -473,7 +446,6 @@ public class MapFragment extends Fragment
         fetchLastLocationSafe();
     }
 
-    // ✅ có fallback getCurrentLocation để tránh lastLocation null
     @SuppressLint("MissingPermission")
     private void fetchLastLocationSafe() {
         try {
@@ -521,7 +493,6 @@ public class MapFragment extends Fragment
             vietMapGL.animateCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 15));
         }
 
-        // đã có vị trí thật rồi -> bỏ ép
         forceNearbyTitle = false;
 
         updateTitle();

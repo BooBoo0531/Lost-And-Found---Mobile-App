@@ -6,22 +6,19 @@ public class Post implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    // ===== Schema mới =====
     private String id;
     private String userId;
     private String userEmail;
     private String timePosted;
     private String description;
-    private String postType;      // "LOST" hoặc "FOUND"
+    private String postType;
     private String imageBase64;
     private String contact;
     private String address;
 
-    // ✅ THÊM: tọa độ để lọc 5km + đặt marker
     private double lat;
     private double lng;
 
-    // ===== Schema cũ =====
     private String userName;
     private String content;
     private String status;
@@ -29,7 +26,6 @@ public class Post implements Serializable {
 
     public Post() {}
 
-    // ===== Constructor kiểu CŨ (8 params) =====
     public Post(String id,
                 String userName,
                 String timePosted,
@@ -58,7 +54,6 @@ public class Post implements Serializable {
         this.lng = 0;
     }
 
-    // ===== Constructor kiểu MỚI (9 params) =====
     public Post(String id,
                 String userId,
                 String userEmail,
@@ -88,7 +83,6 @@ public class Post implements Serializable {
         this.lng = 0;
     }
 
-    // ===== Getters/Setters (NEW) =====
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -140,14 +134,12 @@ public class Post implements Serializable {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    // ✅ lat/lng
     public double getLat() { return lat; }
     public void setLat(double lat) { this.lat = lat; }
 
     public double getLng() { return lng; }
     public void setLng(double lng) { this.lng = lng; }
 
-    // ===== Alias getters/setters (OLD) =====
     public String getUserName() { return getUserEmail(); }
     public void setUserName(String userName) { setUserEmail(userName); }
 

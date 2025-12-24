@@ -26,27 +26,23 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_forgot_password);
 
-        // Handle notch edges
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.forgot), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // ------------------- ÁNH XẠ VIEW --------------------
         etEmail = findViewById(R.id.etEmail);
         etNewPassword = findViewById(R.id.etNewPassword);
         etConfirmPassword = findViewById(R.id.etConfirmPassword);
         btnUpdatePassword = findViewById(R.id.btnUpdatePassword);
         tvGoBack = findViewById(R.id.tvGoBack);
 
-        // Quay về Login
         tvGoBack.setOnClickListener(v -> {
             startActivity(new Intent(ForgotPasswordActivity.this, LoginActivity.class));
             finish();
         });
 
-        // Cập nhật mật khẩu
         btnUpdatePassword.setOnClickListener(v -> validateAndUpdate());
     }
 
@@ -55,8 +51,6 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         String email = etEmail.getText().toString().trim();
         String newPass = etNewPassword.getText().toString().trim();
         String confirmPass = etConfirmPassword.getText().toString().trim();
-
-        // ------------------- VALIDATION --------------------
 
         if (TextUtils.isEmpty(email)) {
             etEmail.setError("Email cannot be empty");
@@ -78,10 +72,8 @@ public class ForgotPasswordActivity extends AppCompatActivity {
             return;
         }
 
-        // Nếu mọi thứ OK
         Toast.makeText(this, "Password updated successfully!", Toast.LENGTH_SHORT).show();
 
-        // Chuyển về Login
         startActivity(new Intent(ForgotPasswordActivity.this, LoginActivity.class));
         finish();
     }

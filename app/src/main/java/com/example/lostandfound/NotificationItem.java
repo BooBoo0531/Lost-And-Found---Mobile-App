@@ -13,8 +13,8 @@ public class NotificationItem implements Serializable {
 
     public String postId;
     public String commentId;
-    public String type;      // "COMMENT" | "REPLY"
-    public String content;   // nội dung comment/reply
+    public String type;
+    public String content;
     public long timestamp;
 
     public boolean isRead;

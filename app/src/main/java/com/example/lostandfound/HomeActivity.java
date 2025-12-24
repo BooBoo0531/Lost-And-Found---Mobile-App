@@ -31,7 +31,6 @@ import com.google.firebase.database.ValueEventListener;
 
 public class HomeActivity extends AppCompatActivity {
 
-    // ===== UI =====
     private FloatingActionButton fabCreatePost, fabHome, fabLost, fabFound;
     private TextView tvLostLabel, tvFoundLabel;
     private boolean isFabExpanded = false;
@@ -42,13 +41,10 @@ public class HomeActivity extends AppCompatActivity {
     private AppBarLayout appBarLayout;
     private View btnSearchSmall;
 
-    // ===== ViewModel =====
     private SharedPostViewModel postVM;
 
-    // ===== Create post launcher =====
     private ActivityResultLauncher<Intent> createPostLauncher;
 
-    // ===== Notify badge listener =====
     private static final String DB_URL =
             "https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app";
 
@@ -241,7 +237,6 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
-    // ===== Notify badge =====
     private void startNotifyBadgeListener() {
         String uid = FirebaseAuth.getInstance().getUid();
         if (uid == null) {
@@ -265,7 +260,7 @@ public class HomeActivity extends AppCompatActivity {
 
                 for (DataSnapshot child : snapshot.getChildren()) {
                     Boolean isRead = child.child("isRead").getValue(Boolean.class);
-                    if (isRead == null || !isRead) { // ✅ null cũng tính là chưa đọc
+                    if (isRead == null || !isRead) {
                         hasUnread = true;
                         break;
                     }
@@ -292,7 +287,6 @@ public class HomeActivity extends AppCompatActivity {
         viewNotifyDot.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
-    // ===== lifecycle =====
     @Override
     protected void onStart() {
         super.onStart();
