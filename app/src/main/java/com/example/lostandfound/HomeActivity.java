@@ -30,10 +30,12 @@ import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
 public class HomeActivity extends AppCompatActivity {
-
+    private com.google.android.material.appbar.CollapsingToolbarLayout collapsingToolbar;
+    private com.google.android.material.appbar.MaterialToolbar toolbar;
     private FloatingActionButton fabCreatePost, fabHome, fabLost, fabFound;
     private TextView tvLostLabel, tvFoundLabel;
     private boolean isFabExpanded = false;
+    private boolean allowSearch = true;
 
     private LinearLayout btnNavHistory, btnNavMap, btnNavNotify, btnNavSetting;
     private View viewNotifyDot;
@@ -56,6 +58,17 @@ public class HomeActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+        collapsingToolbar = findViewById(R.id.collapsingToolbar);
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (toolbar != null) toolbar.setTitleCentered(true);
+        if (toolbar != null) {
+            toolbar.setTitleTextColor(Color.WHITE);
+        }
+        if (collapsingToolbar != null) {
+            collapsingToolbar.setExpandedTitleColor(Color.WHITE);
+            collapsingToolbar.setCollapsedTitleTextColor(Color.WHITE);
+        }
 
         postVM = new ViewModelProvider(this).get(SharedPostViewModel.class);
 
@@ -89,6 +102,11 @@ public class HomeActivity extends AppCompatActivity {
             loadFragment(new NewsFeedFragment());
         }
     }
+    private void setSearchVisible(boolean visible) {
+        if (btnSearchSmall == null) return;
+        btnSearchSmall.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
+        if (visible) btnSearchSmall.setAlpha(1f);
+    }
 
     private void setupCollapsingHeader() {
         if (btnSearchSmall != null) {
@@ -99,6 +117,11 @@ public class HomeActivity extends AppCompatActivity {
 
         if (appBarLayout != null) {
             appBarLayout.addOnOffsetChangedListener((appBar, verticalOffset) -> {
+                if (!allowSearch) {
+                    setSearchVisible(false);
+                    return;
+                }
+
                 float percentage = (float) Math.abs(verticalOffset) / appBar.getTotalScrollRange();
                 if (percentage > 0.75f) {
                     if (btnSearchSmall != null && btnSearchSmall.getVisibility() != View.VISIBLE) {
@@ -152,6 +175,31 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void loadFragment(Fragment fragment) {
+        String title = "Lost and Found";
+
+        if (fragment instanceof HistoryFragment) title = "History";
+        else if (fragment instanceof MapFragment) title = "Map";
+        else if (fragment instanceof NotificationFragment) title = "Notification";
+        else if (fragment instanceof Setting) title = "Setting";
+        else if (fragment instanceof NewsFeedFragment) title = "Lost and Found";
+
+        if (toolbar != null) toolbar.setTitle(title);
+        if (collapsingToolbar != null) collapsingToolbar.setTitle(title);
+        boolean hideSearch =
+                (fragment instanceof HistoryFragment)
+                        || (fragment instanceof NotificationFragment)
+                        || (fragment instanceof Setting);
+
+        allowSearch = !hideSearch;
+
+        if (hideSearch) {
+            setSearchVisible(false);
+            if (appBarLayout != null) appBarLayout.setExpanded(false, true); // thu gọn header luôn
+        } else {
+            // Fragment khác (NewsFeed/Map...) cho phép search hiện theo scroll
+            // Nếu bạn muốn lúc mới vào luôn có search thì bật:
+            // setSearchVisible(true);
+        }
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, fragment)
                 .commit();
