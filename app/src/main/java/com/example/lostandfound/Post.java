@@ -9,7 +9,13 @@ public class Post implements Serializable {
     private String id;
     private String userId;
     private String userEmail;
+
+    // ✅ timePosted = thời gian đăng bài (auto)
     private String timePosted;
+
+    // ✅ lostFoundTime = thời gian nhặt/mất (user chọn)
+    private String lostFoundTime;
+
     private String description;
     private String postType;
     private String imageBase64;
@@ -19,6 +25,7 @@ public class Post implements Serializable {
     private double lat;
     private double lng;
 
+    // legacy/alias fields
     private String userName;
     private String content;
     private String status;
@@ -26,6 +33,7 @@ public class Post implements Serializable {
 
     public Post() {}
 
+    // Constructor cũ (giữ để không vỡ code cũ)
     public Post(String id,
                 String userName,
                 String timePosted,
@@ -52,8 +60,12 @@ public class Post implements Serializable {
 
         this.lat = 0;
         this.lng = 0;
+
+        // ✅ fallback: bài cũ coi timePosted như lostFoundTime nếu chưa có field mới
+        this.lostFoundTime = "";
     }
 
+    // Constructor chính (giữ cũ) — timePosted truyền vào (bài cũ)
     public Post(String id,
                 String userId,
                 String userEmail,
@@ -68,6 +80,40 @@ public class Post implements Serializable {
         this.userId = userId;
         this.userEmail = userEmail;
         this.timePosted = timePosted;
+        this.description = description;
+        this.postType = postType;
+        this.imageBase64 = imageBase64;
+        this.contact = contact;
+        this.address = address;
+
+        this.userName = userEmail;
+        this.content = description;
+        this.status = postType;
+        this.contactPhone = contact;
+
+        this.lat = 0;
+        this.lng = 0;
+
+        this.lostFoundTime = "";
+    }
+
+    // ✅ constructor mới đúng nghiệp vụ
+    public Post(String id,
+                String userId,
+                String userEmail,
+                String timePosted,
+                String lostFoundTime,
+                String description,
+                String postType,
+                String imageBase64,
+                String contact,
+                String address) {
+
+        this.id = id;
+        this.userId = userId;
+        this.userEmail = userEmail;
+        this.timePosted = timePosted;
+        this.lostFoundTime = lostFoundTime;
         this.description = description;
         this.postType = postType;
         this.imageBase64 = imageBase64;
@@ -98,8 +144,17 @@ public class Post implements Serializable {
         this.userName = userEmail;
     }
 
+    // ✅ thời gian đăng bài
     public String getTimePosted() { return timePosted; }
     public void setTimePosted(String timePosted) { this.timePosted = timePosted; }
+
+    // ✅ thời gian nhặt/mất
+    // fallback cho bài cũ: nếu lostFoundTime trống thì dùng timePosted (vì trước đây timePosted đang lưu nhặt/mất)
+    public String getLostFoundTime() {
+        if (lostFoundTime != null && !lostFoundTime.trim().isEmpty()) return lostFoundTime;
+        return ""; // để adapter quyết định fallback nếu cần
+    }
+    public void setLostFoundTime(String lostFoundTime) { this.lostFoundTime = lostFoundTime; }
 
     public String getDescription() {
         if (description != null && !description.isEmpty()) return description;

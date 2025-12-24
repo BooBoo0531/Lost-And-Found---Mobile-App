@@ -10,7 +10,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.firebase.database.*;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -38,6 +42,7 @@ public class ReplyAdapter extends RecyclerView.Adapter<ReplyAdapter.VH> {
     @Override
     public void onBindViewHolder(@NonNull VH h, int pos) {
         Reply r = list.get(pos);
+
         h.tvName.setText(safe(r.userEmail));
         h.tvText.setText(safe(r.text));
         h.tvTime.setText(formatTime(r.createdAt));
@@ -55,10 +60,13 @@ public class ReplyAdapter extends RecyclerView.Adapter<ReplyAdapter.VH> {
     }
 
     private void bindAvatar(ImageView img, String uid) {
-        img.setImageResource(R.drawable.ic_notification);
-        img.setPadding(8,8,8,8);
-        img.setColorFilter(0xFF888888);
         img.setTag(uid);
+
+        img.setImageResource(R.drawable.ic_notification);
+        img.setPadding(0,0,0,0);
+        img.clearColorFilter();
+        img.setImageTintList(null);
+        img.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
         if (uid == null || uid.isEmpty()) return;
 
@@ -71,12 +79,7 @@ public class ReplyAdapter extends RecyclerView.Adapter<ReplyAdapter.VH> {
                 if (b64 == null || b64.isEmpty()) return;
 
                 Bitmap bmp = ImageUtil.base64ToBitmap(b64);
-                if (bmp != null) {
-                    img.clearColorFilter();
-                    img.setPadding(0,0,0,0);
-                    img.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                    img.setImageBitmap(bmp);
-                }
+                if (bmp != null) img.setImageBitmap(bmp);
             }
             @Override public void onCancelled(@NonNull DatabaseError error) {}
         });

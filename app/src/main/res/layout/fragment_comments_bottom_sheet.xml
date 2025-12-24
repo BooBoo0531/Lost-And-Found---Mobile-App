@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -42,10 +43,12 @@
             android:textColor="#D32F2F"/>
     </LinearLayout>
 
+    <!-- ✅ Đổi 320dp -> 0dp + weight=1 để list co giãn giống IG -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvComments"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:overScrollMode="never"/>
 
     <!-- image preview -->
@@ -70,6 +73,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_gallery"
+            app:tint="#F07A7A"
             android:padding="8dp"
             android:background="?attr/selectableItemBackgroundBorderless" />
 
@@ -79,15 +83,16 @@
             android:layout_height="42dp"
             android:layout_weight="1"
             android:hint="Viết bình luận..."
-            android:paddingHorizontal="12dp"
-            android:layout_marginHorizontal="8dp"
-            android:background="@android:drawable/edit_text"/>
+            android:paddingHorizontal="16dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_label_rounded"/>
 
         <ImageView
             android:id="@+id/btnSend"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_send"
+            app:tint="#F07A7A"
             android:padding="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"/>
     </LinearLayout>

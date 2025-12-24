@@ -18,6 +18,7 @@
         android:orientation="vertical"
         android:paddingBottom="10dp">
 
+        <!-- HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -80,6 +81,7 @@
                 android:paddingVertical="6dp" />
         </LinearLayout>
 
+        <!-- CONTENT -->
         <TextView
             android:id="@+id/tvContent"
             android:layout_width="match_parent"
@@ -90,6 +92,17 @@
             android:textColor="#000000"
             android:textSize="15sp"
             android:lineSpacingExtra="4dp"/>
+
+        <TextView
+            android:id="@+id/tvLostFoundTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="6dp"
+            android:text="⏰ Thời gian nhặt/mất: ..."
+            android:textColor="#555555"
+            android:textSize="13sp"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvAddress"
@@ -135,48 +148,36 @@
             app:iconGravity="textStart"
             app:backgroundTint="#2196F3"
             android:visibility="gone" />
-        <TextView
-            android:id="@+id/tvViewAllComments"
+
+        <!-- ✅ CHỈ GIỮ ICON COMMENT (mở BottomSheet) -->
+        <LinearLayout
+            android:id="@+id/rowActions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingHorizontal="12dp"
             android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:text="Xem tất cả bình luận (0)"
-            android:textColor="#1976D2"
-            android:textStyle="bold"
-            android:textSize="13sp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#EEEEEE" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="12dp"
             android:gravity="center_vertical">
 
-            <EditText
-                android:id="@+id/etComment"
-                android:layout_width="0dp"
-                android:layout_height="42dp"
-                android:layout_weight="1"
-                android:hint="Viết bình luận..."
-                android:background="@drawable/bg_label_rounded"
-                android:paddingHorizontal="16dp"
-                android:layout_marginEnd="8dp"/>
-
             <ImageView
-                android:id="@+id/btnSendComment"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_send"
-                app:tint="#F07A7A"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"/>
+                android:id="@+id/btnOpenComments"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_comment"
+                android:contentDescription="Bình luận"
+                android:padding="3dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#111111" />
+
+            <TextView
+                android:id="@+id/tvCommentCountInline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Bình luận"
+                android:textColor="#111111"
+                android:textSize="13sp"
+                android:textStyle="bold"/>
         </LinearLayout>
 
     </LinearLayout>
