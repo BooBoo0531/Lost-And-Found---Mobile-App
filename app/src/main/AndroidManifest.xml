@@ -36,6 +36,8 @@
         <activity
             android:name=".ForgotPasswordActivity"
             android:exported="false" />
+
+        <activity android:name=".ChatListActivity" />
         <activity
             android:name=".PostActivity"
             android:exported="false" />
