@@ -13,6 +13,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.app.Dialog;
+import android.util.DisplayMetrics;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -29,6 +33,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +90,50 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                     Toast.makeText(getContext(), "Không đọc được ảnh", Toast.LENGTH_SHORT).show();
                 }
             });
+
+    // 1. Xử lý việc bàn phím đẩy view lên (không bị che)
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        if (dialog.getWindow() != null) {
+            // Dòng này giúp Dialog tự động resize khi bàn phím hiện lên
+            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+        return dialog;
+    }
+
+    // 2. Xử lý chiều cao 2/3 màn hình
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        Dialog dialog = getDialog();
+        if (dialog != null) {
+            // Tìm view cốt lõi của BottomSheet (design_bottom_sheet)
+            FrameLayout bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+
+            if (bottomSheet != null) {
+                // Lấy kích thước màn hình
+                DisplayMetrics displayMetrics = new DisplayMetrics();
+                requireActivity().getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+
+                // Tính toán chiều cao (2/3 chiều cao màn hình)
+                int height = (int) (displayMetrics.heightPixels * 0.66);
+
+                // Gán chiều cao cho BottomSheet
+                bottomSheet.getLayoutParams().height = height;
+
+                // Mở rộng BottomSheet ngay lập tức
+                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
+                behavior.setPeekHeight(height);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+                // (Tùy chọn) Ngăn người dùng kéo ẩn xuống nếu muốn cố định
+                // behavior.setSkipCollapsed(true);
+            }
+        }
+    }
 
     @Nullable
     @Override

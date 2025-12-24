@@ -161,8 +161,8 @@
                 android:gravity="center"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true">
-                <ImageView android:id="@+id/nav_history" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_history" app:tint="#555555"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="History" android:textSize="10sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
+                <ImageView android:id="@+id/nav_history" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_history" app:tint="#555555"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="History" android:textSize="12sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
             <LinearLayout
@@ -174,8 +174,8 @@
                 android:gravity="center"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true">
-                <ImageView android:id="@+id/nav_map" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_map" app:tint="#555555"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Map" android:textSize="10sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
+                <ImageView android:id="@+id/nav_map" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_map" app:tint="#555555"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Map" android:textSize="12sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
             <View android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:visibility="invisible"/>
@@ -215,7 +215,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Notify"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:textColor="#555555"
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
@@ -229,8 +229,8 @@
                 android:gravity="center"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true">
-                <ImageView android:id="@+id/nav_setting" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_setting" app:tint="#555555"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Setting" android:textSize="10sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
+                <ImageView android:id="@+id/nav_setting" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_setting" app:tint="#555555"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Setting" android:textSize="12sp" android:textColor="#555555" android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.bottomappbar.BottomAppBar>
@@ -312,6 +312,19 @@
         app:pressedTranslationZ="12dp"
         android:contentDescription="Create Post"/>
 
+
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabHome"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_home"
+        app:tint="#F07A7A"
+        app:backgroundTint="@android:color/white"
+        app:layout_anchor="@id/bottomAppBar"
+        app:maxImageSize="30dp"
+        android:contentDescription="Home Button"/>
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabOpenChatList"
         android:layout_width="wrap_content"
@@ -327,16 +340,4 @@
         app:elevation="8dp"
         app:maxImageSize="28dp"
         android:contentDescription="Hộp thư" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabHome"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_home"
-        app:tint="#F07A7A"
-        app:backgroundTint="@android:color/white"
-        app:layout_anchor="@id/bottomAppBar"
-        app:maxImageSize="30dp"
-        android:contentDescription="Home Button"/>
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

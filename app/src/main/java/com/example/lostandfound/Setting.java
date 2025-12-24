@@ -61,9 +61,11 @@ public class Setting extends Fragment {
                                 imgAvatar.setImageURI(uri);
                             }
 
-                            android.graphics.Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireActivity().getContentResolver(), uri);
+                            android.graphics.Bitmap bitmap =
+                                    MediaStore.Images.Media.getBitmap(requireActivity().getContentResolver(), uri);
 
-                            android.graphics.Bitmap scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 400, 400, true);
+                            android.graphics.Bitmap scaled =
+                                    android.graphics.Bitmap.createScaledBitmap(bitmap, 400, 400, true);
 
                             String imageString = ImageUtil.bitmapToBase64(scaled);
 
@@ -74,8 +76,10 @@ public class Setting extends Fragment {
                                 ).getReference("users").child(user.getUid());
 
                                 userRef.child("avatarUrl").setValue(imageString)
-                                        .addOnSuccessListener(aVoid -> Toast.makeText(requireContext(), "Avatar saved", Toast.LENGTH_SHORT).show())
-                                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "Save failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                                        .addOnSuccessListener(aVoid ->
+                                                Toast.makeText(requireContext(), "Avatar saved", Toast.LENGTH_SHORT).show())
+                                        .addOnFailureListener(e ->
+                                                Toast.makeText(requireContext(), "Save failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                             } else {
                                 Toast.makeText(requireContext(), "User not signed in", Toast.LENGTH_SHORT).show();
                             }
@@ -93,6 +97,7 @@ public class Setting extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
+
         View view = inflater.inflate(R.layout.activity_setting, container, false);
 
         tvUserEmail = view.findViewById(R.id.tvUserEmail);
@@ -114,13 +119,17 @@ public class Setting extends Fragment {
 
         btnMyPosts.setOnClickListener(v -> openHistoryFragment());
 
+        // ✅ ĐỔI Ở ĐÂY: bấm "Đổi mật khẩu" -> mở ForgotPasswordActivity
         btnChangePassword.setOnClickListener(v -> {
-            if (mAuth.getCurrentUser() != null) {
-                mAuth.sendPasswordResetEmail(mAuth.getCurrentUser().getEmail())
-                        .addOnCompleteListener(task -> {
-                            if (task.isSuccessful()) Toast.makeText(requireContext(), "Password email sent", Toast.LENGTH_LONG).show();
-                        });
+            Intent intent = new Intent(requireContext(), ForgotPasswordActivity.class);
+
+            // (tuỳ chọn) truyền email qua màn forgot để auto-fill
+            FirebaseUser user = mAuth.getCurrentUser();
+            if (user != null && user.getEmail() != null) {
+                intent.putExtra("EMAIL", user.getEmail());
             }
+
+            startActivity(intent);
         });
 
         btnSupport.setOnClickListener(v -> {
@@ -171,7 +180,9 @@ public class Setting extends Fragment {
     private void loadUserInfo() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) return;
+
         tvUserEmail.setText(user.getEmail());
+
         try {
             mDatabase = FirebaseDatabase.getInstance(
                     "https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -181,6 +192,7 @@ public class Setting extends Fragment {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     if (!snapshot.exists()) return;
+
                     String phone = snapshot.child("phone").getValue(String.class);
                     if (phone != null) tvUserPhone.setText(phone);
 
@@ -191,7 +203,7 @@ public class Setting extends Fragment {
                             android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
                             if (bmp != null && imgAvatar != null) {
                                 imgAvatar.setImageBitmap(bmp);
-                                imgAvatar.setPadding(0,0,0,0);
+                                imgAvatar.setPadding(0, 0, 0, 0);
                                 imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                             }
                         } catch (Exception e) {
@@ -201,12 +213,13 @@ public class Setting extends Fragment {
                 }
 
                 @Override
-                public void onCancelled(@NonNull DatabaseError error) {}
+                public void onCancelled(@NonNull DatabaseError error) { }
             });
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     private void openHistoryFragment() {
         getParentFragmentManager()
                 .beginTransaction()
@@ -214,5 +227,4 @@ public class Setting extends Fragment {
                 .addToBackStack("history")
                 .commit();
     }
-
 }

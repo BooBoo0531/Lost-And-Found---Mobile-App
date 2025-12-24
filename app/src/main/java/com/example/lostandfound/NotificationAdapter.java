@@ -2,7 +2,6 @@ package com.example.lostandfound;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.Typeface;
 import android.text.Html;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -64,7 +63,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         String rawName = (item.fromEmail != null && !item.fromEmail.trim().isEmpty()) ? item.fromEmail : "Người dùng ẩn danh";
         String displayName = rawName.contains("@") ? rawName.substring(0, rawName.indexOf("@")) : rawName;
 
-        // Xử lý Câu thông báo dựa trên TYPE
         String type = item.type != null ? item.type : "";
         String htmlTitle;
 
@@ -78,29 +76,45 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             case "FOUND":
                 htmlTitle = "<b>" + displayName + "</b> báo rằng đã tìm thấy món đồ của bạn";
                 break;
+            case "MESSAGE":
+                htmlTitle = "<b>" + displayName + "</b> đã nhắn tin cho bạn";
+                break;
             default:
                 htmlTitle = "<b>" + displayName + "</b>";
                 break;
         }
-
         h.tvName.setText(Html.fromHtml(htmlTitle, Html.FROM_HTML_MODE_LEGACY));
 
+        if ("MESSAGE".equalsIgnoreCase(type)) {
+            if (h.cvThumbnail != null) h.cvThumbnail.setVisibility(View.GONE);
+        } else {
+            if (h.cvThumbnail != null) h.cvThumbnail.setVisibility(View.VISIBLE);
+            bindPostThumbnail(h, item);
+        }
+
+        h.tvName.setText(Html.fromHtml(htmlTitle, Html.FROM_HTML_MODE_LEGACY));
         h.tvContent.setText(item.content != null ? item.content.trim() : "");
 
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(new Date(item.timestamp));
         h.tvTime.setText(time);
 
+        // Xử lý đã đọc / chưa đọc
         boolean unread = !item.isRead;
         h.dotUnread.setVisibility(unread ? View.VISIBLE : View.GONE);
 
         if (unread) {
-            h.root.setBackgroundColor(0xFFF0F8FF); // Xanh nhạt
+            h.root.setBackgroundColor(0xFFF0F8FF); // Màu xanh nhạt
         } else {
-            h.root.setBackgroundColor(0xFFFFFFFF); // Trắng
+            h.root.setBackgroundColor(0xFFFFFFFF); // Màu trắng
         }
 
         bindUserAvatar(h, item);
-        bindPostThumbnail(h, item);
+
+        if (!"MESSAGE".equalsIgnoreCase(type)) {
+            bindPostThumbnail(h, item);
+        } else {
+            h.imgPostThumbnail.setVisibility(View.GONE);
+        }
 
         h.root.setOnClickListener(v -> {
             if (onItemClick != null) onItemClick.onClick(item);
@@ -177,7 +191,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         LinearLayout root;
         ImageView imgAvatar, imgPostThumbnail;
         TextView tvName, tvContent, tvTime;
-        View dotUnread;
+        View dotUnread, cvThumbnail;
 
         VH(@NonNull View itemView) {
             super(itemView);
@@ -188,6 +202,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             tvContent = itemView.findViewById(R.id.tvNotifyContent);
             tvTime = itemView.findViewById(R.id.tvNotifyTime);
             dotUnread = itemView.findViewById(R.id.dotUnread);
+            cvThumbnail = itemView.findViewById(R.id.cvThumbnail);
         }
     }
 }

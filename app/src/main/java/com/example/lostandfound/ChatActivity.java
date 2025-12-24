@@ -35,6 +35,7 @@ public class ChatActivity extends AppCompatActivity {
     private String currentUserId;
     private String targetUserId;
     private String chatId;
+    private static final String DB_URL = "https://lostandfound-4930e-default-rtdb.asia-southeast1.firebasedatabase.app";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,12 +100,48 @@ public class ChatActivity extends AppCompatActivity {
         long timestamp = System.currentTimeMillis();
         Message message = new Message(currentUserId, text, timestamp);
 
-        // Đẩy lên Firebase
+        // 1. Lưu tin nhắn vào nhánh Chats (Code cũ)
         if (mRef != null) {
             mRef.push().setValue(message);
         }
 
+        // CẬP NHẬT DANH SÁCH CHAT
+        DatabaseReference chatListRef = FirebaseDatabase.getInstance(DB_URL).getReference("ChatList");
+
+        chatListRef.child(currentUserId).child(targetUserId).child("id").setValue(targetUserId);
+
+        chatListRef.child(targetUserId).child(currentUserId).child("id").setValue(currentUserId);
+
+        // GỬI THÔNG BÁO (Notification)
+        sendNotification(targetUserId, text);
+
         edtMessageInput.setText("");
+    }
+
+    // Hàm đẩy thông báo
+    private void sendNotification(String receiverId, String content) {
+        DatabaseReference notifyRef = FirebaseDatabase.getInstance(DB_URL)
+                .getReference("notifications")
+                .child(receiverId);
+
+        String notiId = notifyRef.push().getKey();
+        String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+
+        // Tạo đối tượng NotificationItem (dùng chung class với phần Comment)
+        NotificationItem noti = new NotificationItem();
+        noti.id = notiId;
+        noti.toUserId = receiverId;
+        noti.fromUserId = currentUserId;
+        noti.fromEmail = myEmail;
+        noti.postId = "";
+        noti.type = "MESSAGE";
+        noti.content = content;
+        noti.timestamp = System.currentTimeMillis();
+        noti.isRead = false;
+
+        if (notiId != null) {
+            notifyRef.child(notiId).setValue(noti);
+        }
     }
 
     private void readMessages() {

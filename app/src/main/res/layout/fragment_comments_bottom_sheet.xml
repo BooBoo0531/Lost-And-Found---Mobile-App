@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootCommentsSheet"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -16,7 +17,6 @@
         android:textColor="#111111"
         android:paddingBottom="8dp"/>
 
-    <!-- reply bar -->
     <LinearLayout
         android:id="@+id/replyBar"
         android:layout_width="match_parent"
@@ -43,15 +43,15 @@
             android:textColor="#D32F2F"/>
     </LinearLayout>
 
-    <!-- ✅ Đổi 320dp -> 0dp + weight=1 để list co giãn giống IG -->
+    <!-- List co giãn -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvComments"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:overScrollMode="never"/>
+        android:overScrollMode="never"
+        android:paddingBottom="8dp"/>
 
-    <!-- image preview -->
     <ImageView
         android:id="@+id/imgPreview"
         android:layout_width="match_parent"
@@ -61,12 +61,15 @@
         android:background="#EEEEEE"
         android:layout_marginTop="8dp" />
 
+    <!-- Input bar -->
     <LinearLayout
+        android:id="@+id/inputBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="10dp"
+        android:paddingBottom="8dp">
 
         <ImageView
             android:id="@+id/btnPickImage"
@@ -85,7 +88,10 @@
             android:hint="Viết bình luận..."
             android:paddingHorizontal="16dp"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_label_rounded"/>
+            android:background="@drawable/bg_label_rounded"
+            android:imeOptions="actionSend"
+            android:inputType="textMultiLine"
+            android:maxLines="3"/>
 
         <ImageView
             android:id="@+id/btnSend"
