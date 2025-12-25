@@ -14,6 +14,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -32,8 +33,10 @@ import java.util.Set;
 
 public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
 
-    public interface OnReplyClick {
-        void onReply(Comment c);
+    public interface OnReplyTargetClick {
+        void onReply(@NonNull String parentCommentId,
+                     @NonNull String targetUserId,
+                     @NonNull String targetName);
     }
 
     private final Context context;
@@ -41,7 +44,7 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
     private final List<Comment> list;
     private final DatabaseReference usersRef;
     private final DatabaseReference repliesRootRef; // replies/{postId}/{commentId}
-    private final OnReplyClick onReplyClick;
+    private final OnReplyTargetClick onReplyTargetClick;
 
     private final Set<String> expanded = new HashSet<>();
 
@@ -50,13 +53,13 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
                           List<Comment> list,
                           DatabaseReference usersRef,
                           DatabaseReference repliesRootRef,
-                          OnReplyClick onReplyClick) {
+                          OnReplyTargetClick onReplyTargetClick) {
         this.context = context;
         this.postId = postId;
         this.list = list;
         this.usersRef = usersRef;
         this.repliesRootRef = repliesRootRef;
-        this.onReplyClick = onReplyClick;
+        this.onReplyTargetClick = onReplyTargetClick;
     }
 
     @NonNull
@@ -109,12 +112,20 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
             h.imgComment.setVisibility(View.GONE);
         }
 
-        // reply click
+        // reply click (comment cha)
         h.btnReply.setOnClickListener(v -> {
-            if (onReplyClick != null) onReplyClick.onReply(c);
+            String cid = (c.id == null) ? "" : c.id.trim();
+            if (cid.isEmpty()) return;
+
+            String targetUid = (c.userId == null) ? "" : c.userId;
+            String targetName = (c.userEmail == null) ? "" : c.userEmail;
+
+            if (onReplyTargetClick != null) {
+                onReplyTargetClick.onReply(cid, targetUid, targetName);
+            }
         });
 
-        // avatar (✅ không padding, không tint, không filter)
+        // avatar
         bindAvatar(h, c.userId);
 
         // ===== replies nested =====
@@ -150,7 +161,7 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
                     h.tvViewReplies.setText("Ẩn câu trả lời");
                     h.tvViewReplies.setVisibility(View.VISIBLE);
                     h.rvReplies.setVisibility(View.VISIBLE);
-                    bindRepliesRecycler(h, thisRepliesRef);
+                    bindRepliesRecycler(h, thisRepliesRef, commentId);
                 }
 
                 h.tvViewReplies.setOnClickListener(v -> {
@@ -164,7 +175,9 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         });
     }
 
-    private void bindRepliesRecycler(@NonNull VH h, @NonNull DatabaseReference thisRepliesRef) {
+    private void bindRepliesRecycler(@NonNull VH h,
+                                     @NonNull DatabaseReference thisRepliesRef,
+                                     @NonNull String parentCommentId) {
         if (h.rvReplies.getLayoutManager() == null) {
             h.rvReplies.setLayoutManager(new LinearLayoutManager(context));
             h.rvReplies.setNestedScrollingEnabled(false);
@@ -176,7 +189,16 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         }
 
         List<Reply> replyList = new ArrayList<>();
-        ReplyAdapter replyAdapter = new ReplyAdapter(replyList);
+
+        // ✅ FIX: click "Trả lời" trong item_reply -> bật replyBar
+        ReplyAdapter replyAdapter = new ReplyAdapter(replyList, parentCommentId,
+                (cid, r) -> {
+                    if (onReplyTargetClick == null) return;
+                    String uid = (r.userId == null) ? "" : r.userId;
+                    String name = (r.userEmail == null) ? "" : r.userEmail; // hoặc đổi sang displayName nếu bạn có
+                    onReplyTargetClick.onReply(cid, uid, name);
+                });
+
         h.rvReplies.setAdapter(replyAdapter);
 
         thisRepliesRef.orderByChild("createdAt")
@@ -206,7 +228,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         return "";
     }
 
-    // ✅ avatar: không padding, không colorFilter, không tint
     private void bindAvatar(@NonNull VH h, String userId) {
         h.imgAvatar.setTag(userId);
 
@@ -242,6 +263,14 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
     }
 
     private String safe(String s) { return s == null ? "" : s; }
+
+    /** Force expand replies UI for a specific parent comment. */
+    public void expandRepliesFor(@Nullable String parentCommentId) {
+        if (parentCommentId == null) return;
+        String cid = parentCommentId.trim();
+        if (cid.isEmpty()) return;
+        expanded.add(cid);
+    }
 
     @Override
     public int getItemCount() { return list == null ? 0 : list.size(); }

@@ -1,13 +1,13 @@
 package com.example.lostandfound;
 
-import android.content.Intent; // Cần import Intent
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.LinearLayout; // Import LinearLayout
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -40,10 +40,22 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
     private NotificationItem item;
 
-    private LinearLayout rootLayout; // Layout gốc để bắt sự kiện click
+    private LinearLayout rootLayout;
     private ImageView imgAvatar;
     private TextView tvName, tvType, tvTime, tvMessage;
-    // private Button btnOpenComments; // Đã xóa
+
+    // ===== Post preview (item_post_map) =====
+    private TextView tvPostLabel;
+    private View postPreview;
+
+    private ImageView imgPostAvatar, imgPostImage, btnOpenComments;
+    private TextView tvPostUserName, tvPostTime, tvPostStatus, tvPostContent;
+    private TextView tvPostLostFoundTime, tvPostAddress, tvPostContact, tvPostCommentCount;
+
+    private DatabaseReference postsRef;
+    private DatabaseReference usersRef;
+    private DatabaseReference commentsRootRef;
+    private DatabaseReference repliesRootRef;
 
     @Nullable
     @Override
@@ -55,12 +67,34 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
         Object raw = getArguments() != null ? getArguments().getSerializable(ARG_NOTIFY) : null;
         if (raw instanceof NotificationItem) item = (NotificationItem) raw;
 
-        rootLayout = v.findViewById(R.id.rootLayout); // Ánh xạ layout gốc
+        rootLayout = v.findViewById(R.id.rootLayout);
         imgAvatar = v.findViewById(R.id.imgDetailAvatar);
         tvName = v.findViewById(R.id.tvDetailName);
         tvType = v.findViewById(R.id.tvDetailType);
         tvTime = v.findViewById(R.id.tvDetailTime);
         tvMessage = v.findViewById(R.id.tvDetailMessage);
+
+        tvPostLabel = v.findViewById(R.id.tvPostLabel);
+        postPreview = v.findViewById(R.id.includePostPreview);
+
+        // Views inside item_post_map
+        imgPostAvatar = v.findViewById(R.id.imgAvatarPost);
+        tvPostUserName = v.findViewById(R.id.tvUserName);
+        tvPostTime = v.findViewById(R.id.tvPostTime);
+        tvPostStatus = v.findViewById(R.id.tvStatus);
+        tvPostContent = v.findViewById(R.id.tvContent);
+        tvPostLostFoundTime = v.findViewById(R.id.tvLostFoundTime);
+        tvPostAddress = v.findViewById(R.id.tvAddress);
+        tvPostContact = v.findViewById(R.id.tvContact);
+        imgPostImage = v.findViewById(R.id.imgPostImage);
+        btnOpenComments = v.findViewById(R.id.btnOpenComments);
+        tvPostCommentCount = v.findViewById(R.id.tvCommentCountInline);
+
+        FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
+        postsRef = db.getReference("posts");
+        usersRef = db.getReference("users");
+        commentsRootRef = db.getReference("comments");
+        repliesRootRef = db.getReference("replies");
 
         bindData();
         return v;
@@ -83,35 +117,15 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
         tvMessage.setText(item.content == null ? "" : item.content);
 
-        // Reset avatar mặc định
         imgAvatar.setImageResource(R.drawable.ic_notification);
         imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
         imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         loadAvatar(item.fromUserId);
 
-        // --- XỬ LÝ CLICK VÀO TOÀN BỘ THÔNG BÁO ---
-        rootLayout.setOnClickListener(v -> {
-            if (item.postId != null && !item.postId.trim().isEmpty()) {
-
-                // CÁCH 1: Mở màn hình chi tiết bài đăng (Activity) - KHUYÊN DÙNG
-                // Bạn cần thay PostDetailActivity.class bằng tên Activity bài đăng thực tế của bạn
-                try {
-                    Intent intent = new Intent(requireContext(), NewsFeedFragment.class);
-                    intent.putExtra("POST_ID", item.postId);
-                    startActivity(intent);
-                    dismiss(); // Đóng thông báo sau khi nhấn
-                } catch (Exception e) {
-                    // Nếu chưa có Activity, hoặc lỗi, fallback về hiện Comment như cũ:
-                    openCommentsSheet();
-                }
-
-                // CÁCH 2: Nếu bạn chỉ muốn hiện lại cái BottomSheet bình luận như cũ:
-                // openCommentsSheet();
-            }
-        });
+        // ✅ show full post
+        bindPostPreview(item.postId);
     }
 
-    // Hàm phụ trợ mở lại BottomSheet Comments (Logic cũ của nút bấm)
     private void openCommentsSheet() {
         try {
             CommentsBottomSheetDialogFragment.newInstance(item.postId)
@@ -120,15 +134,179 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
         } catch (Exception ignored) {}
     }
 
+    private void bindPostPreview(@Nullable String postId) {
+        if (postPreview == null) return;
+
+        String pid = (postId == null) ? "" : postId.trim();
+        if (pid.isEmpty() || postsRef == null) {
+            postPreview.setVisibility(View.GONE);
+            if (tvPostLabel != null) tvPostLabel.setVisibility(View.GONE);
+            return;
+        }
+
+        postPreview.setVisibility(View.VISIBLE);
+        if (tvPostLabel != null) tvPostLabel.setVisibility(View.VISIBLE);
+
+        View.OnClickListener open = v -> openCommentsSheet();
+        if (btnOpenComments != null) btnOpenComments.setOnClickListener(open);
+        if (tvPostCommentCount != null) tvPostCommentCount.setOnClickListener(open);
+        postPreview.setOnClickListener(open);
+
+        if (tvPostCommentCount != null) tvPostCommentCount.setText("Bình luận");
+
+        postsRef.child(pid).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Post p = snapshot.getValue(Post.class);
+                if (p == null) {
+                    if (tvPostContent != null) tvPostContent.setText("(Bài viết không còn tồn tại)");
+                    return;
+                }
+                if (p.getId() == null || p.getId().trim().isEmpty()) p.setId(pid);
+
+                if (tvPostUserName != null) tvPostUserName.setText(safe(p.getUserEmail()));
+                if (tvPostTime != null) tvPostTime.setText(safe(p.getTimePosted()));
+                if (tvPostContent != null) tvPostContent.setText(stripTransactionPlace(p.getDescription()));
+
+                if (tvPostStatus != null) {
+                    tvPostStatus.setBackgroundResource(R.drawable.bg_label_rounded);
+                    if ("LOST".equalsIgnoreCase(p.getPostType())) {
+                        tvPostStatus.setText("LOST");
+                        tvPostStatus.setTextColor(0xFFD32F2F);
+                        tvPostStatus.setBackgroundTintList(ColorStateList.valueOf(0xFFFFEBEE));
+                    } else {
+                        tvPostStatus.setText("FOUND");
+                        tvPostStatus.setTextColor(0xFF388E3C);
+                        tvPostStatus.setBackgroundTintList(ColorStateList.valueOf(0xFFE8F5E9));
+                    }
+                }
+
+                String lf = safe(p.getLostFoundTime());
+                if (lf.isEmpty()) lf = safe(p.getTimePosted());
+                if (tvPostLostFoundTime != null) {
+                    if (lf.isEmpty() || "Chọn thời gian".equalsIgnoreCase(lf.trim())) {
+                        tvPostLostFoundTime.setVisibility(View.GONE);
+                    } else {
+                        tvPostLostFoundTime.setVisibility(View.VISIBLE);
+                        tvPostLostFoundTime.setText("⏰ Thời gian nhặt/mất: " + lf);
+                    }
+                }
+
+                if (tvPostAddress != null) {
+                    String addr = safe(p.getAddress());
+                    if (addr.isEmpty()) tvPostAddress.setVisibility(View.GONE);
+                    else {
+                        tvPostAddress.setVisibility(View.VISIBLE);
+                        tvPostAddress.setText("📍 Địa điểm: " + addr);
+                    }
+                }
+
+                if (tvPostContact != null) {
+                    String contact = safe(p.getContact());
+                    if (contact.isEmpty()) tvPostContact.setVisibility(View.GONE);
+                    else {
+                        tvPostContact.setVisibility(View.VISIBLE);
+                        tvPostContact.setText("☎ Liên hệ: " + contact);
+                    }
+                }
+
+                if (imgPostImage != null) {
+                    String b64 = safe(p.getImageBase64());
+                    if (b64.isEmpty()) {
+                        imgPostImage.setVisibility(View.GONE);
+                    } else {
+                        Bitmap bmp = ImageUtil.base64ToBitmap(b64);
+                        if (bmp != null) {
+                            imgPostImage.setVisibility(View.VISIBLE);
+                            imgPostImage.setImageBitmap(bmp);
+                        } else imgPostImage.setVisibility(View.GONE);
+                    }
+                }
+
+                bindPostAvatar(imgPostAvatar, p.getUserId());
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+
+        bindCommentCount(pid);
+    }
+
+    private void bindCommentCount(@NonNull String postId) {
+        if (commentsRootRef == null || repliesRootRef == null || tvPostCommentCount == null) return;
+
+        commentsRootRef.child(postId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int parents = 0;
+                for (DataSnapshot c : snapshot.getChildren()) {
+                    String pid = c.child("parentId").getValue(String.class);
+                    if (pid == null || pid.trim().isEmpty()) parents++;
+                }
+
+                int finalParents = parents;
+                repliesRootRef.child(postId).addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override public void onDataChange(@NonNull DataSnapshot snap) {
+                        int replies = 0;
+                        for (DataSnapshot perComment : snap.getChildren()) {
+                            replies += (int) perComment.getChildrenCount();
+                        }
+                        tvPostCommentCount.setText("Bình luận (" + (finalParents + replies) + ")");
+                    }
+                    @Override public void onCancelled(@NonNull DatabaseError error) {}
+                });
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
+    private void bindPostAvatar(@Nullable ImageView img, @Nullable String uid) {
+        if (img == null) return;
+
+        img.setImageResource(R.drawable.ic_notification);
+        img.setPadding(dp(6), dp(6), dp(6), dp(6));
+        img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+
+        String u = (uid == null) ? "" : uid.trim();
+        if (u.isEmpty() || usersRef == null) return;
+
+        img.setTag(u);
+        usersRef.child(u).child("avatarUrl").addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Object tag = img.getTag();
+                if (tag == null || !u.equals(tag.toString())) return;
+                String base64 = snapshot.getValue(String.class);
+                if (base64 == null || base64.isEmpty()) return;
+                Bitmap bmp = ImageUtil.base64ToBitmap(base64);
+                if (bmp != null) {
+                    img.setPadding(0, 0, 0, 0);
+                    img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    img.setImageBitmap(bmp);
+                }
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
+    private String stripTransactionPlace(String desc) {
+        if (desc == null) return "";
+        return desc.replaceAll("\\n?\\(\\s*Giao\\s*dịch\\s*tại\\s*:\\s*[^\\)]*\\)", "").trim();
+    }
+
+    private String safe(String s) { return s == null ? "" : s; }
+
     private void loadAvatar(String fromUserId) {
         if (fromUserId == null || fromUserId.trim().isEmpty()) return;
 
-        DatabaseReference usersRef = FirebaseDatabase.getInstance(DB_URL)
+        DatabaseReference uref = FirebaseDatabase.getInstance(DB_URL)
                 .getReference("users")
                 .child(fromUserId);
 
         imgAvatar.setTag(fromUserId);
-        usersRef.child("avatarUrl").addListenerForSingleValueEvent(new ValueEventListener() {
+        uref.child("avatarUrl").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 Object tag = imgAvatar.getTag();
@@ -139,7 +317,6 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
                 Bitmap bmp = ImageUtil.base64ToBitmap(base64);
                 if (bmp != null) {
-                    // Khi load được ảnh thật, bỏ padding và scale kiểu CROP để lấp đầy hình tròn
                     imgAvatar.setPadding(0, 0, 0, 0);
                     imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                     imgAvatar.setImageBitmap(bmp);

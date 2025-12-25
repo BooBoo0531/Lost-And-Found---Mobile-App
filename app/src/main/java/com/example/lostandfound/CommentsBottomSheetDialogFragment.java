@@ -1,22 +1,22 @@
 package com.example.lostandfound;
 
+import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.app.Dialog;
-import android.util.DisplayMetrics;
-import android.view.WindowManager;
-import android.widget.FrameLayout;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -25,6 +25,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -33,8 +34,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,48 +90,34 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 }
             });
 
-    // 1. Xử lý việc bàn phím đẩy view lên (không bị che)
     @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Dialog dialog = super.onCreateDialog(savedInstanceState);
+
+        dialog.setOnShowListener(d -> {
+            com.google.android.material.bottomsheet.BottomSheetDialog bs =
+                    (com.google.android.material.bottomsheet.BottomSheetDialog) d;
+
+            View sheet = bs.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (sheet != null) {
+                ViewGroup.LayoutParams lp = sheet.getLayoutParams();
+                lp.height = ViewGroup.LayoutParams.MATCH_PARENT; // ✅ full height
+                sheet.setLayoutParams(lp);
+
+                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(sheet);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+            }
+        });
+
         if (dialog.getWindow() != null) {
-            // Dòng này giúp Dialog tự động resize khi bàn phím hiện lên
-            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            dialog.getWindow().setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                            | WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+            );
         }
         return dialog;
-    }
-
-    // 2. Xử lý chiều cao 2/3 màn hình
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        Dialog dialog = getDialog();
-        if (dialog != null) {
-            // Tìm view cốt lõi của BottomSheet (design_bottom_sheet)
-            FrameLayout bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-
-            if (bottomSheet != null) {
-                // Lấy kích thước màn hình
-                DisplayMetrics displayMetrics = new DisplayMetrics();
-                requireActivity().getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-
-                // Tính toán chiều cao (2/3 chiều cao màn hình)
-                int height = (int) (displayMetrics.heightPixels * 0.66);
-
-                // Gán chiều cao cho BottomSheet
-                bottomSheet.getLayoutParams().height = height;
-
-                // Mở rộng BottomSheet ngay lập tức
-                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
-                behavior.setPeekHeight(height);
-                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-
-                // (Tùy chọn) Ngăn người dùng kéo ẩn xuống nếu muốn cố định
-                // behavior.setSkipCollapsed(true);
-            }
-        }
     }
 
     @Nullable
@@ -162,13 +147,18 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 displayList,
                 usersRef,
                 repliesRootRef,
-                c -> {
-                    replyToCommentId = (c.id == null) ? "" : c.id;
-                    replyToName = (c.userEmail == null) ? "" : c.userEmail;
-                    replyToUserId = (c.userId == null) ? "" : c.userId;
+                (parentCommentId, targetUserId, targetName) -> {
+                    // ✅ khi bấm Trả lời ở comment hoặc reply => bật replyBar
+                    replyToCommentId = (parentCommentId == null) ? "" : parentCommentId;
+                    replyToName = (targetName == null) ? "" : targetName;
+                    replyToUserId = (targetUserId == null) ? "" : targetUserId;
 
                     replyBar.setVisibility(View.VISIBLE);
                     tvReplyingTo.setText("Đang trả lời: " + replyToName);
+
+                    // ✅ auto expand để thấy reply mới xuất hiện
+                    adapter.expandRepliesFor(replyToCommentId);
+                    adapter.notifyDataSetChanged();
                 }
         );
         rv.setAdapter(adapter);
@@ -205,7 +195,6 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 });
     }
 
-    // ✅ chỉ load COMMENT CHA (parentId rỗng)
     private void listenParentComments() {
         commentsRef.orderByChild("timestamp")
                 .addValueEventListener(new ValueEventListener() {
@@ -295,6 +284,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
         Reply r = new Reply();
         r.id = rid;
+        r.commentId = commentId;
         r.userId = me.getUid();
         r.userEmail = me.getEmail();
         r.text = text;
@@ -303,12 +293,18 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
         thisRepliesRef.child(rid).setValue(r)
                 .addOnSuccessListener(unused -> {
-                    notifyRepliedUser(commentId, r);
+                    notifyRepliedUser(commentId, r, replyToUserId);
 
                     et.setText("");
                     pickedImageBase64 = "";
                     imgPreview.setVisibility(View.GONE);
                     clearReplyMode();
+
+                    // ✅ refresh replies ngay lập tức
+                    if (adapter != null) {
+                        adapter.expandRepliesFor(commentId);
+                        adapter.notifyDataSetChanged();
+                    }
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(getContext(), "Lỗi gửi trả lời: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -341,19 +337,27 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         pushNotification(postOwnerId, "COMMENT", c.id, buildSnippet(c.content, c.imageBase64));
     }
 
-    private void notifyRepliedUser(@NonNull String commentId, @NonNull Reply r) {
+    private void notifyRepliedUser(@NonNull String parentCommentId,
+                                   @NonNull Reply r,
+                                   @Nullable String targetUserId) {
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) return;
 
-        commentsRef.child(commentId).child("userId")
+        String toUid = (targetUserId == null) ? "" : targetUserId.trim();
+        if (!toUid.isEmpty()) {
+            if (toUid.equals(me.getUid())) return;
+            pushNotification(toUid, "REPLY", parentCommentId, buildSnippet(r.text, r.imageBase64));
+            return;
+        }
+
+        // fallback: reply vào chủ comment cha
+        commentsRef.child(parentCommentId).child("userId")
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        String toUid = snapshot.getValue(String.class);
-                        if (toUid == null || toUid.trim().isEmpty()) return;
-                        if (toUid.equals(me.getUid())) return;
-
-                        String snippet = buildSnippet(r.text, r.imageBase64);
-                        pushNotification(toUid, "REPLY", commentId, snippet);
+                        String uid = snapshot.getValue(String.class);
+                        if (uid == null || uid.trim().isEmpty()) return;
+                        if (uid.equals(me.getUid())) return;
+                        pushNotification(uid, "REPLY", parentCommentId, buildSnippet(r.text, r.imageBase64));
                     }
                     @Override public void onCancelled(@NonNull DatabaseError error) {}
                 });
