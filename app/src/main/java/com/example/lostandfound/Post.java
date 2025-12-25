@@ -30,7 +30,6 @@ public class Post implements Serializable {
     private String content;
     private String status;
     private String contactPhone;
-    private String lostFoundTime;
 
     public Post() {}
 
@@ -148,12 +147,6 @@ public class Post implements Serializable {
     // ✅ thời gian đăng bài
     public String getTimePosted() { return timePosted; }
     public void setTimePosted(String timePosted) { this.timePosted = timePosted; }
-    public String getLostFoundTime() {
-        return lostFoundTime;
-    }
-    public void setLostFoundTime(String lostFoundTime) {
-        this.lostFoundTime = lostFoundTime;
-    }
 
     // ✅ thời gian nhặt/mất
     // fallback cho bài cũ: nếu lostFoundTime trống thì dùng timePosted (vì trước đây timePosted đang lưu nhặt/mất)
