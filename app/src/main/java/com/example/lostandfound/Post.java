@@ -26,6 +26,7 @@ public class Post implements Serializable {
     private String content;
     private String status;
     private String contactPhone;
+    private String lostFoundTime;
 
     public Post() {}
 
@@ -106,6 +107,12 @@ public class Post implements Serializable {
 
     public String getTimePosted() { return timePosted; }
     public void setTimePosted(String timePosted) { this.timePosted = timePosted; }
+    public String getLostFoundTime() {
+        return lostFoundTime;
+    }
+    public void setLostFoundTime(String lostFoundTime) {
+        this.lostFoundTime = lostFoundTime;
+    }
 
     public String getDescription() {
         if (description != null && !description.isEmpty()) return description;

@@ -127,7 +127,7 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
-            android:text="Nhắn tin nhận đồ"
+            android:text="Nhắn tin"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             app:icon="@android:drawable/ic_menu_send"
@@ -143,7 +143,7 @@
             android:paddingTop="10dp"
             android:paddingBottom="10dp"
             android:text="Xem tất cả bình luận (0)"
-            android:textColor="#1976D2"
+            android:textColor="#F07A7A"
             android:textStyle="bold"
             android:textSize="13sp" />
 

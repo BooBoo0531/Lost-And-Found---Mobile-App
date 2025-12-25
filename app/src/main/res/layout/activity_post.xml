@@ -182,25 +182,6 @@
 
             <View android:layout_width="match_parent" android:layout_height="16dp"/>
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilTransactionPlace"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Địa điểm nhận lại đồ (nếu có)"
-                android:textColorHint="#757575"
-                app:startIconDrawable="@android:drawable/ic_menu_myplaces"
-                app:startIconTint="#757575"
-                app:boxStrokeColor="#F07A7A"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edtTransactionPlace"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#333333"
-                    android:inputType="text"/>
-            </com.google.android.material.textfield.TextInputLayout>
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSubmitPost"
                 android:layout_width="match_parent"
