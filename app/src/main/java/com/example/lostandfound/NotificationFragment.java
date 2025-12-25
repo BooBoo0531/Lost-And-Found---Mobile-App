@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+
+
 public class NotificationFragment extends Fragment {
 
     private static final String DB_URL =

@@ -2,6 +2,10 @@ package com.example.lostandfound;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.StyleSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +14,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.database.DataSnapshot;
@@ -18,26 +24,42 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
 
-    public interface OnReplyClick {
-        void onReply(Comment c);
+    public interface OnReplyTargetClick {
+        void onReply(@NonNull String parentCommentId,
+                     @NonNull String targetUserId,
+                     @NonNull String targetName);
     }
 
     private final Context context;
+    private final String postId;
     private final List<Comment> list;
     private final DatabaseReference usersRef;
-    private final OnReplyClick onReplyClick;
+    private final DatabaseReference repliesRootRef; // replies/{postId}/{commentId}
+    private final OnReplyTargetClick onReplyTargetClick;
 
-    public CommentAdapter(Context context, List<Comment> list, DatabaseReference usersRef, OnReplyClick onReplyClick) {
+    private final Set<String> expanded = new HashSet<>();
+
+    public CommentAdapter(Context context,
+                          String postId,
+                          List<Comment> list,
+                          DatabaseReference usersRef,
+                          DatabaseReference repliesRootRef,
+                          OnReplyTargetClick onReplyTargetClick) {
         this.context = context;
+        this.postId = postId;
         this.list = list;
         this.usersRef = usersRef;
-        this.onReplyClick = onReplyClick;
+        this.repliesRootRef = repliesRootRef;
+        this.onReplyTargetClick = onReplyTargetClick;
     }
 
     @NonNull
@@ -51,7 +73,18 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
     public void onBindViewHolder(@NonNull VH h, int position) {
         Comment c = list.get(position);
 
-        h.tvName.setText(safe(c.userEmail));
+        // reset state (tránh recycle sai)
+        h.tvViewReplies.setVisibility(View.GONE);
+        h.rvReplies.setVisibility(View.GONE);
+        h.tvViewReplies.setOnClickListener(null);
+
+        String name = safe(c.userEmail);
+        if (name.isEmpty()) name = "Người dùng ẩn danh";
+
+        if (h.tvName != null) {
+            h.tvName.setText(name);
+            h.tvName.setTypeface(null, Typeface.BOLD); // In đậm tên
+        }
 
         String msg = pickMessage(c);
         if ((msg == null || msg.trim().isEmpty()) && c.imageBase64 != null && !c.imageBase64.isEmpty()) {
@@ -59,17 +92,22 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         }
         h.tvContent.setText(safe(msg));
 
+        if (name.contains("@")) {
+            name = name.substring(0, name.indexOf("@"));
+        }
+        h.tvName.setText(name);
+
+        if ((msg == null || msg.trim().isEmpty()) && c.imageBase64 != null && !c.imageBase64.isEmpty()) {
+            msg = "🖼 Đã gửi một ảnh";
+        }
+        h.tvContent.setText(safe(msg));
+
+        // time
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                 .format(new Date(c.timestamp));
         h.tvTime.setText(time);
 
-        boolean isReply = c.parentId != null && !c.parentId.trim().isEmpty();
-        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) h.root.getLayoutParams();
-        if (lp != null) {
-            lp.leftMargin = isReply ? dp(46) : dp(0);
-            h.root.setLayoutParams(lp);
-        }
-
+        // ảnh comment
         if (c.imageBase64 != null && !c.imageBase64.isEmpty()) {
             Bitmap bmp = ImageUtil.base64ToBitmap(c.imageBase64);
             if (bmp != null) {
@@ -82,11 +120,118 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
             h.imgComment.setVisibility(View.GONE);
         }
 
+        // reply click (comment cha)
         h.btnReply.setOnClickListener(v -> {
-            if (onReplyClick != null) onReplyClick.onReply(c);
+            String cid = (c.id == null) ? "" : c.id.trim();
+            if (cid.isEmpty()) return;
+
+            String targetUid = (c.userId == null) ? "" : c.userId;
+            String targetName = (c.userEmail == null) ? "" : c.userEmail;
+
+            if (onReplyTargetClick != null) {
+                onReplyTargetClick.onReply(cid, targetUid, targetName);
+            }
         });
 
+
+        // avatar
         bindAvatar(h, c.userId);
+
+        // ===== replies nested =====
+        String commentId = (c.id == null) ? "" : c.id.trim();
+        if (commentId.isEmpty() || repliesRootRef == null || postId == null || postId.trim().isEmpty()) return;
+
+        h.tvViewReplies.setTag(commentId);
+        h.rvReplies.setTag(commentId);
+
+        DatabaseReference thisRepliesRef = repliesRootRef.child(postId).child(commentId);
+
+        thisRepliesRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Object tag1 = h.tvViewReplies.getTag();
+                Object tag2 = h.rvReplies.getTag();
+                if (tag1 == null || tag2 == null) return;
+                if (!commentId.equals(tag1.toString()) || !commentId.equals(tag2.toString())) return;
+
+                int count = (int) snapshot.getChildrenCount();
+                if (count <= 0) {
+                    h.tvViewReplies.setVisibility(View.GONE);
+                    h.rvReplies.setVisibility(View.GONE);
+                    return;
+                }
+
+                boolean isExpanded = expanded.contains(commentId);
+
+                if (!isExpanded) {
+                    h.tvViewReplies.setText("Xem " + count + " câu trả lời khác");
+                    h.tvViewReplies.setVisibility(View.VISIBLE);
+                    h.rvReplies.setVisibility(View.GONE);
+                } else {
+                    h.tvViewReplies.setText("Ẩn câu trả lời");
+                    h.tvViewReplies.setVisibility(View.VISIBLE);
+                    h.rvReplies.setVisibility(View.VISIBLE);
+                    bindRepliesRecycler(h, thisRepliesRef, commentId);
+                }
+
+                h.tvViewReplies.setOnClickListener(v -> {
+                    int currentPosition = h.getAdapterPosition();
+                    if (currentPosition == RecyclerView.NO_POSITION) return;
+
+                    if (expanded.contains(commentId)) expanded.remove(commentId);
+                    else expanded.add(commentId);
+                    notifyItemChanged(currentPosition);
+                });
+
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
+    private void bindRepliesRecycler(@NonNull VH h,
+                                     @NonNull DatabaseReference thisRepliesRef,
+                                     @NonNull String parentCommentId) {
+        if (h.rvReplies.getLayoutManager() == null) {
+            h.rvReplies.setLayoutManager(new LinearLayoutManager(context));
+            h.rvReplies.setNestedScrollingEnabled(false);
+
+            // thụt vào giống IG
+            int pad = dp(12);
+            h.rvReplies.setPadding(pad, 0, 0, 0);
+            h.rvReplies.setClipToPadding(false);
+        }
+
+        List<Reply> replyList = new ArrayList<>();
+
+        // ✅ FIX: click "Trả lời" trong item_reply -> bật replyBar
+        ReplyAdapter replyAdapter = new ReplyAdapter(replyList, parentCommentId,
+                (cid, r) -> {
+                    if (onReplyTargetClick == null) return;
+                    String uid = (r.userId == null) ? "" : r.userId;
+                    String name = (r.userEmail == null) ? "" : r.userEmail; // hoặc đổi sang displayName nếu bạn có
+                    onReplyTargetClick.onReply(cid, uid, name);
+                });
+
+        h.rvReplies.setAdapter(replyAdapter);
+
+        thisRepliesRef.orderByChild("createdAt")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Object tag = h.rvReplies.getTag();
+                        if (tag == null) return;
+
+                        replyList.clear();
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            Reply r = child.getValue(Reply.class);
+                            if (r == null) continue;
+                            if (r.id == null || r.id.trim().isEmpty()) r.id = child.getKey();
+                            replyList.add(r);
+                        }
+                        replyAdapter.notifyDataSetChanged();
+                    }
+
+                    @Override public void onCancelled(@NonNull DatabaseError error) {}
+                });
     }
 
     private String pickMessage(Comment c) {
@@ -97,12 +242,16 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
     }
 
     private void bindAvatar(@NonNull VH h, String userId) {
+        h.imgAvatar.setTag(userId);
+
         h.imgAvatar.setImageResource(R.drawable.ic_notification);
-        h.imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
+        h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        h.imgAvatar.setPadding(0, 0, 0, 0);
+        h.imgAvatar.clearColorFilter();
+        h.imgAvatar.setImageTintList(null);
 
         if (userId == null || userId.trim().isEmpty() || usersRef == null) return;
 
-        h.imgAvatar.setTag(userId);
         usersRef.child(userId).child("avatarUrl")
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -114,8 +263,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
 
                         Bitmap bmp = ImageUtil.base64ToBitmap(base64);
                         if (bmp != null) {
-                            h.imgAvatar.setPadding(0,0,0,0);
-                            h.imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                             h.imgAvatar.setImageBitmap(bmp);
                         }
                     }
@@ -130,23 +277,36 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
 
     private String safe(String s) { return s == null ? "" : s; }
 
+    /** Force expand replies UI for a specific parent comment. */
+    public void expandRepliesFor(@Nullable String parentCommentId) {
+        if (parentCommentId == null) return;
+        String cid = parentCommentId.trim();
+        if (cid.isEmpty()) return;
+        expanded.add(cid);
+    }
+
     @Override
-    public int getItemCount() { return list.size(); }
+    public int getItemCount() { return list == null ? 0 : list.size(); }
 
     static class VH extends RecyclerView.ViewHolder {
         LinearLayout root;
         ImageView imgAvatar, imgComment;
-        TextView tvName, tvTime, tvContent, btnReply;
+        TextView tvContent, tvTime, btnReply;
+        TextView tvName;
+        TextView tvViewReplies;
+        RecyclerView rvReplies;
 
         VH(@NonNull View itemView) {
             super(itemView);
             root = itemView.findViewById(R.id.rootComment);
             imgAvatar = itemView.findViewById(R.id.imgAvatar);
-            tvName = itemView.findViewById(R.id.tvName);
-            tvTime = itemView.findViewById(R.id.tvTime);
             tvContent = itemView.findViewById(R.id.tvContent);
+            tvTime = itemView.findViewById(R.id.tvTime);
+            tvName = itemView.findViewById(R.id.tvName);
             imgComment = itemView.findViewById(R.id.imgComment);
             btnReply = itemView.findViewById(R.id.btnReply);
+            tvViewReplies = itemView.findViewById(R.id.tvViewReplies);
+            rvReplies = itemView.findViewById(R.id.rvReplies);
         }
     }
 }

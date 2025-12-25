@@ -1,14 +1,18 @@
 package com.example.lostandfound;
 
+import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -21,6 +25,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -31,9 +36,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment {
 
@@ -55,7 +58,8 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
     private final List<Comment> displayList = new ArrayList<>();
     private CommentAdapter adapter;
 
-    private DatabaseReference commentsRef;
+    private DatabaseReference commentsRef;         // comments/{postId}
+    private DatabaseReference repliesRootRef;      // replies root
     private DatabaseReference usersRef;
     private DatabaseReference postsRef;
     private DatabaseReference notificationsRootRef;
@@ -67,7 +71,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
     private LinearLayout replyBar;
     private TextView tvReplyingTo, btnCancelReply;
 
-    private String replyToId = "";
+    private String replyToCommentId = "";
     private String replyToName = "";
     private String replyToUserId = "";
 
@@ -86,6 +90,36 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 }
             });
 
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+
+        dialog.setOnShowListener(d -> {
+            com.google.android.material.bottomsheet.BottomSheetDialog bs =
+                    (com.google.android.material.bottomsheet.BottomSheetDialog) d;
+
+            View sheet = bs.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (sheet != null) {
+                ViewGroup.LayoutParams lp = sheet.getLayoutParams();
+                lp.height = ViewGroup.LayoutParams.MATCH_PARENT; // ✅ full height
+                sheet.setLayoutParams(lp);
+
+                BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(sheet);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+            }
+        });
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                            | WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+            );
+        }
+        return dialog;
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -99,6 +133,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
 
         commentsRef = db.getReference("comments").child(postId);
+        repliesRootRef = db.getReference("replies"); // replies/{postId}/{commentId}/{replyId}
         usersRef = db.getReference("users");
         postsRef = db.getReference("posts");
         notificationsRootRef = db.getReference("notifications");
@@ -106,14 +141,26 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         rv = v.findViewById(R.id.rvComments);
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        adapter = new CommentAdapter(requireContext(), displayList, usersRef, c -> {
-            replyToId = (c.id == null) ? "" : c.id;
-            replyToName = (c.userEmail == null) ? "" : c.userEmail;
-            replyToUserId = (c.userId == null) ? "" : c.userId;
+        adapter = new CommentAdapter(
+                requireContext(),
+                postId,
+                displayList,
+                usersRef,
+                repliesRootRef,
+                (parentCommentId, targetUserId, targetName) -> {
+                    // ✅ khi bấm Trả lời ở comment hoặc reply => bật replyBar
+                    replyToCommentId = (parentCommentId == null) ? "" : parentCommentId;
+                    replyToName = (targetName == null) ? "" : targetName;
+                    replyToUserId = (targetUserId == null) ? "" : targetUserId;
 
-            replyBar.setVisibility(View.VISIBLE);
-            tvReplyingTo.setText("Đang trả lời: " + replyToName);
-        });
+                    replyBar.setVisibility(View.VISIBLE);
+                    tvReplyingTo.setText("Đang trả lời: " + replyToName);
+
+                    // ✅ auto expand để thấy reply mới xuất hiện
+                    adapter.expandRepliesFor(replyToCommentId);
+                    adapter.notifyDataSetChanged();
+                }
+        );
         rv.setAdapter(adapter);
 
         et = v.findViewById(R.id.etCommentContent);
@@ -127,10 +174,10 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
 
         btnCancelReply.setOnClickListener(x -> clearReplyMode());
         btnPick.setOnClickListener(x -> pickImageLauncher.launch("image/*"));
-        btnSend.setOnClickListener(x -> sendComment());
+        btnSend.setOnClickListener(x -> onSend());
 
         loadPostOwner();
-        listenComments();
+        listenParentComments();
 
         return v;
     }
@@ -144,17 +191,17 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                         String uid = snapshot.getValue(String.class);
                         postOwnerId = (uid == null) ? "" : uid;
                     }
-                    @Override public void onCancelled(@NonNull DatabaseError error) { }
+                    @Override public void onCancelled(@NonNull DatabaseError error) {}
                 });
     }
 
-    private void listenComments() {
+    private void listenParentComments() {
         commentsRef.orderByChild("timestamp")
                 .addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        displayList.clear();
 
-                        List<Comment> all = new ArrayList<>();
                         for (DataSnapshot child : snapshot.getChildren()) {
                             Comment c = child.getValue(Comment.class);
                             if (c == null) continue;
@@ -167,25 +214,10 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                                 if (oldText != null) c.content = oldText;
                             }
 
-                            all.add(c);
-                        }
-
-                        Map<String, List<Comment>> replies = new HashMap<>();
-                        List<Comment> parents = new ArrayList<>();
-
-                        for (Comment c : all) {
-                            if (c.parentId == null || c.parentId.trim().isEmpty()) {
-                                parents.add(c);
-                            } else {
-                                replies.computeIfAbsent(c.parentId, k -> new ArrayList<>()).add(c);
+                            String pid = (c.parentId == null) ? "" : c.parentId.trim();
+                            if (pid.isEmpty()) {
+                                displayList.add(c);
                             }
-                        }
-
-                        displayList.clear();
-                        for (Comment p : parents) {
-                            displayList.add(p);
-                            List<Comment> rs = replies.get(p.id);
-                            if (rs != null) displayList.addAll(rs);
                         }
 
                         adapter.notifyDataSetChanged();
@@ -195,7 +227,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 });
     }
 
-    private void sendComment() {
+    private void onSend() {
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) {
             Toast.makeText(getContext(), "Bạn cần đăng nhập để bình luận", Toast.LENGTH_SHORT).show();
@@ -208,10 +240,16 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
             return;
         }
 
+        if (TextUtils.isEmpty(replyToCommentId)) {
+            sendParentComment(me, content);
+        } else {
+            sendReply(me, content, replyToCommentId);
+        }
+    }
+
+    private void sendParentComment(@NonNull FirebaseUser me, @NonNull String content) {
         String id = commentsRef.push().getKey();
         if (id == null) return;
-
-        String parentId = (replyToId == null) ? "" : replyToId;
 
         Comment c = new Comment(
                 id,
@@ -220,17 +258,13 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 me.getEmail(),
                 content,
                 pickedImageBase64,
-                parentId,
+                "",
                 System.currentTimeMillis()
         );
 
         commentsRef.child(id).setValue(c)
                 .addOnSuccessListener(unused -> {
-                    if (TextUtils.isEmpty(parentId)) {
-                        notifyPostOwnerForNewComment(c);
-                    } else {
-                        notifyRepliedUser(c);
-                    }
+                    notifyPostOwnerForNewComment(c);
 
                     et.setText("");
                     pickedImageBase64 = "";
@@ -239,7 +273,42 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(getContext(), "Lỗi gửi bình luận: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e("COMMENTS", "sendComment failed", e);
+                    Log.e("COMMENTS", "sendParentComment failed", e);
+                });
+    }
+
+    private void sendReply(@NonNull FirebaseUser me, @NonNull String text, @NonNull String commentId) {
+        DatabaseReference thisRepliesRef = repliesRootRef.child(postId).child(commentId);
+        String rid = thisRepliesRef.push().getKey();
+        if (rid == null) return;
+
+        Reply r = new Reply();
+        r.id = rid;
+        r.commentId = commentId;
+        r.userId = me.getUid();
+        r.userEmail = me.getEmail();
+        r.text = text;
+        r.imageBase64 = pickedImageBase64;
+        r.createdAt = System.currentTimeMillis();
+
+        thisRepliesRef.child(rid).setValue(r)
+                .addOnSuccessListener(unused -> {
+                    notifyRepliedUser(commentId, r, replyToUserId);
+
+                    et.setText("");
+                    pickedImageBase64 = "";
+                    imgPreview.setVisibility(View.GONE);
+                    clearReplyMode();
+
+                    // ✅ refresh replies ngay lập tức
+                    if (adapter != null) {
+                        adapter.expandRepliesFor(commentId);
+                        adapter.notifyDataSetChanged();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(getContext(), "Lỗi gửi trả lời: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("COMMENTS", "sendReply failed", e);
                 });
     }
 
@@ -253,46 +322,52 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
                         @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
                             String uid = snapshot.getValue(String.class);
                             postOwnerId = (uid == null) ? "" : uid;
-                            if (!TextUtils.isEmpty(postOwnerId)) pushNotification(postOwnerId, "COMMENT", c);
+                            if (!TextUtils.isEmpty(postOwnerId)) {
+                                pushNotification(postOwnerId, "COMMENT", c.id, buildSnippet(c.content, c.imageBase64));
+                            }
                         }
-                        @Override public void onCancelled(@NonNull DatabaseError error) { }
+                        @Override public void onCancelled(@NonNull DatabaseError error) {}
                     });
             return;
         }
 
         if (TextUtils.isEmpty(postOwnerId)) return;
-
         if (postOwnerId.equals(me.getUid())) return;
 
-        pushNotification(postOwnerId, "COMMENT", c);
+        pushNotification(postOwnerId, "COMMENT", c.id, buildSnippet(c.content, c.imageBase64));
     }
 
-    private void notifyRepliedUser(@NonNull Comment c) {
+    private void notifyRepliedUser(@NonNull String parentCommentId,
+                                   @NonNull Reply r,
+                                   @Nullable String targetUserId) {
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) return;
 
-        if (TextUtils.isEmpty(replyToUserId)) {
-            if (!TextUtils.isEmpty(c.parentId)) {
-                commentsRef.child(c.parentId).child("userId")
-                        .addListenerForSingleValueEvent(new ValueEventListener() {
-                            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                String uid = snapshot.getValue(String.class);
-                                if (uid == null || uid.trim().isEmpty()) return;
-                                if (uid.equals(me.getUid())) return;
-                                pushNotification(uid, "REPLY", c);
-                            }
-                            @Override public void onCancelled(@NonNull DatabaseError error) { }
-                        });
-            }
+        String toUid = (targetUserId == null) ? "" : targetUserId.trim();
+        if (!toUid.isEmpty()) {
+            if (toUid.equals(me.getUid())) return;
+            pushNotification(toUid, "REPLY", parentCommentId, buildSnippet(r.text, r.imageBase64));
             return;
         }
 
-        if (replyToUserId.equals(me.getUid())) return;
-
-        pushNotification(replyToUserId, "REPLY", c);
+        // fallback: reply vào chủ comment cha
+        commentsRef.child(parentCommentId).child("userId")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        String uid = snapshot.getValue(String.class);
+                        if (uid == null || uid.trim().isEmpty()) return;
+                        if (uid.equals(me.getUid())) return;
+                        pushNotification(uid, "REPLY", parentCommentId, buildSnippet(r.text, r.imageBase64));
+                    }
+                    @Override public void onCancelled(@NonNull DatabaseError error) {}
+                });
     }
 
-    private void pushNotification(@NonNull String toUserId, @NonNull String type, @NonNull Comment c) {
+    private void pushNotification(@NonNull String toUserId,
+                                  @NonNull String type,
+                                  @NonNull String commentId,
+                                  @NonNull String snippet) {
+
         FirebaseUser me = FirebaseAuth.getInstance().getCurrentUser();
         if (me == null) return;
         if (notificationsRootRef == null) return;
@@ -300,15 +375,13 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
         String notiId = notificationsRootRef.child(toUserId).push().getKey();
         if (notiId == null) return;
 
-        String snippet = buildSnippet(c.content, c.imageBase64);
-
         NotificationItem item = new NotificationItem(
                 notiId,
                 toUserId,
                 me.getUid(),
                 me.getEmail(),
                 postId,
-                c.id,
+                commentId,
                 type,
                 snippet,
                 System.currentTimeMillis(),
@@ -329,7 +402,7 @@ public class CommentsBottomSheetDialogFragment extends BottomSheetDialogFragment
     }
 
     private void clearReplyMode() {
-        replyToId = "";
+        replyToCommentId = "";
         replyToName = "";
         replyToUserId = "";
         if (replyBar != null) replyBar.setVisibility(View.GONE);

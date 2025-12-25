@@ -37,6 +37,7 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
         return f;
     }
 
+
     private NotificationItem item;
 
     private ImageView imgAvatar;
@@ -49,6 +50,10 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.bottom_sheet_notification_detail, container, false);
+
+        if (getArguments() != null) {
+            item = (NotificationItem) getArguments().getSerializable(ARG_NOTIFY);
+        }
 
         Object raw = getArguments() != null ? getArguments().getSerializable(ARG_NOTIFY) : null;
         if (raw instanceof NotificationItem) item = (NotificationItem) raw;
