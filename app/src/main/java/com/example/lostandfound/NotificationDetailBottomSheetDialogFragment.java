@@ -1,12 +1,13 @@
 package com.example.lostandfound;
 
+import android.content.Intent; // Cần import Intent
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout; // Import LinearLayout
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -39,9 +40,10 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
     private NotificationItem item;
 
+    private LinearLayout rootLayout; // Layout gốc để bắt sự kiện click
     private ImageView imgAvatar;
     private TextView tvName, tvType, tvTime, tvMessage;
-    private Button btnOpenComments;
+    // private Button btnOpenComments; // Đã xóa
 
     @Nullable
     @Override
@@ -53,12 +55,12 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
         Object raw = getArguments() != null ? getArguments().getSerializable(ARG_NOTIFY) : null;
         if (raw instanceof NotificationItem) item = (NotificationItem) raw;
 
+        rootLayout = v.findViewById(R.id.rootLayout); // Ánh xạ layout gốc
         imgAvatar = v.findViewById(R.id.imgDetailAvatar);
         tvName = v.findViewById(R.id.tvDetailName);
         tvType = v.findViewById(R.id.tvDetailType);
         tvTime = v.findViewById(R.id.tvDetailTime);
         tvMessage = v.findViewById(R.id.tvDetailMessage);
-        btnOpenComments = v.findViewById(R.id.btnOpenComments);
 
         bindData();
         return v;
@@ -81,20 +83,41 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
         tvMessage.setText(item.content == null ? "" : item.content);
 
+        // Reset avatar mặc định
         imgAvatar.setImageResource(R.drawable.ic_notification);
         imgAvatar.setPadding(dp(6), dp(6), dp(6), dp(6));
         imgAvatar.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         loadAvatar(item.fromUserId);
 
-        btnOpenComments.setOnClickListener(v -> {
+        // --- XỬ LÝ CLICK VÀO TOÀN BỘ THÔNG BÁO ---
+        rootLayout.setOnClickListener(v -> {
             if (item.postId != null && !item.postId.trim().isEmpty()) {
+
+                // CÁCH 1: Mở màn hình chi tiết bài đăng (Activity) - KHUYÊN DÙNG
+                // Bạn cần thay PostDetailActivity.class bằng tên Activity bài đăng thực tế của bạn
                 try {
-                    CommentsBottomSheetDialogFragment.newInstance(item.postId)
-                            .show(requireActivity().getSupportFragmentManager(), "COMMENTS_" + item.postId);
-                    dismiss();
-                } catch (Exception ignored) {}
+                    Intent intent = new Intent(requireContext(), NewsFeedFragment.class);
+                    intent.putExtra("POST_ID", item.postId);
+                    startActivity(intent);
+                    dismiss(); // Đóng thông báo sau khi nhấn
+                } catch (Exception e) {
+                    // Nếu chưa có Activity, hoặc lỗi, fallback về hiện Comment như cũ:
+                    openCommentsSheet();
+                }
+
+                // CÁCH 2: Nếu bạn chỉ muốn hiện lại cái BottomSheet bình luận như cũ:
+                // openCommentsSheet();
             }
         });
+    }
+
+    // Hàm phụ trợ mở lại BottomSheet Comments (Logic cũ của nút bấm)
+    private void openCommentsSheet() {
+        try {
+            CommentsBottomSheetDialogFragment.newInstance(item.postId)
+                    .show(requireActivity().getSupportFragmentManager(), "COMMENTS_" + item.postId);
+            dismiss();
+        } catch (Exception ignored) {}
     }
 
     private void loadAvatar(String fromUserId) {
@@ -116,6 +139,7 @@ public class NotificationDetailBottomSheetDialogFragment extends BottomSheetDial
 
                 Bitmap bmp = ImageUtil.base64ToBitmap(base64);
                 if (bmp != null) {
+                    // Khi load được ảnh thật, bỏ padding và scale kiểu CROP để lấp đầy hình tròn
                     imgAvatar.setPadding(0, 0, 0, 0);
                     imgAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                     imgAvatar.setImageBitmap(bmp);
