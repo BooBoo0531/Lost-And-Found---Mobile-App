@@ -6,22 +6,26 @@ public class Post implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    // ===== Schema mới =====
     private String id;
     private String userId;
     private String userEmail;
+
+    // ✅ timePosted = thời gian đăng bài (auto)
     private String timePosted;
+
+    // ✅ lostFoundTime = thời gian nhặt/mất (user chọn)
+    private String lostFoundTime;
+
     private String description;
-    private String postType;      // "LOST" hoặc "FOUND"
+    private String postType;
     private String imageBase64;
     private String contact;
     private String address;
 
-    // ✅ THÊM: tọa độ để lọc 5km + đặt marker
     private double lat;
     private double lng;
 
-    // ===== Schema cũ =====
+    // legacy/alias fields
     private String userName;
     private String content;
     private String status;
@@ -30,7 +34,7 @@ public class Post implements Serializable {
 
     public Post() {}
 
-    // ===== Constructor kiểu CŨ (8 params) =====
+    // Constructor cũ (giữ để không vỡ code cũ)
     public Post(String id,
                 String userName,
                 String timePosted,
@@ -57,9 +61,12 @@ public class Post implements Serializable {
 
         this.lat = 0;
         this.lng = 0;
+
+        // ✅ fallback: bài cũ coi timePosted như lostFoundTime nếu chưa có field mới
+        this.lostFoundTime = "";
     }
 
-    // ===== Constructor kiểu MỚI (9 params) =====
+    // Constructor chính (giữ cũ) — timePosted truyền vào (bài cũ)
     public Post(String id,
                 String userId,
                 String userEmail,
@@ -87,9 +94,42 @@ public class Post implements Serializable {
 
         this.lat = 0;
         this.lng = 0;
+
+        this.lostFoundTime = "";
     }
 
-    // ===== Getters/Setters (NEW) =====
+    // ✅ constructor mới đúng nghiệp vụ
+    public Post(String id,
+                String userId,
+                String userEmail,
+                String timePosted,
+                String lostFoundTime,
+                String description,
+                String postType,
+                String imageBase64,
+                String contact,
+                String address) {
+
+        this.id = id;
+        this.userId = userId;
+        this.userEmail = userEmail;
+        this.timePosted = timePosted;
+        this.lostFoundTime = lostFoundTime;
+        this.description = description;
+        this.postType = postType;
+        this.imageBase64 = imageBase64;
+        this.contact = contact;
+        this.address = address;
+
+        this.userName = userEmail;
+        this.content = description;
+        this.status = postType;
+        this.contactPhone = contact;
+
+        this.lat = 0;
+        this.lng = 0;
+    }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -105,6 +145,7 @@ public class Post implements Serializable {
         this.userName = userEmail;
     }
 
+    // ✅ thời gian đăng bài
     public String getTimePosted() { return timePosted; }
     public void setTimePosted(String timePosted) { this.timePosted = timePosted; }
     public String getLostFoundTime() {
@@ -113,6 +154,14 @@ public class Post implements Serializable {
     public void setLostFoundTime(String lostFoundTime) {
         this.lostFoundTime = lostFoundTime;
     }
+
+    // ✅ thời gian nhặt/mất
+    // fallback cho bài cũ: nếu lostFoundTime trống thì dùng timePosted (vì trước đây timePosted đang lưu nhặt/mất)
+    public String getLostFoundTime() {
+        if (lostFoundTime != null && !lostFoundTime.trim().isEmpty()) return lostFoundTime;
+        return ""; // để adapter quyết định fallback nếu cần
+    }
+    public void setLostFoundTime(String lostFoundTime) { this.lostFoundTime = lostFoundTime; }
 
     public String getDescription() {
         if (description != null && !description.isEmpty()) return description;
@@ -153,7 +202,6 @@ public class Post implements Serializable {
     public double getLng() { return lng; }
     public void setLng(double lng) { this.lng = lng; }
 
-    // ===== Alias getters/setters (OLD) =====
     public String getUserName() { return getUserEmail(); }
     public void setUserName(String userName) { setUserEmail(userName); }
 

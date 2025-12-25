@@ -20,8 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -44,8 +44,8 @@ public class PostActivity extends AppCompatActivity {
     private MaterialButton btnSelectImage, btnSubmitPost;
 
     private TextInputEditText edtDescription, edtLocation, edtContact, edtPickTime;
-
-    private TextInputLayout tilLocation, tilDescription, tilPickTime, tilContact;
+    private TextInputEditText edtTransactionPlace; // giữ biến để không crash nếu XML còn, nhưng sẽ ẩn
+    private TextInputLayout tilLocation, tilDescription, tilPickTime, tilContact, tilTransactionPlace;
 
     private String postType;
     private Uri selectedImageUri;
@@ -101,13 +101,23 @@ public class PostActivity extends AppCompatActivity {
         tilDescription = findViewById(R.id.tilDescription);
         tilPickTime = findViewById(R.id.tilPickTime);
         tilContact = findViewById(R.id.tilContact);
+        tilTransactionPlace = findViewById(R.id.tilTransactionPlace);
 
         edtPickTime = findViewById(R.id.btnPickTime);
         edtContact = findViewById(R.id.edtContact);
+        edtTransactionPlace = findViewById(R.id.edtTransactionPlace);
 
-        if (edtPickTime.getText() == null || edtPickTime.getText().toString().trim().isEmpty()) {
+        // ✅ Ẩn ô "Giao dịch tại" (không dùng nữa)
+        if (tilTransactionPlace != null) {
+            tilTransactionPlace.setVisibility(View.GONE);
+        }
+
+        if (edtPickTime != null && (edtPickTime.getText() == null || edtPickTime.getText().toString().trim().isEmpty())) {
             edtPickTime.setText("Chọn thời gian");
         }
+
+        // (Tuỳ chọn) đổi hint label cho đúng ngữ nghĩa
+        if (tilPickTime != null) tilPickTime.setHint("Thời gian nhặt/mất");
     }
 
     private void setupLogic() {
@@ -118,11 +128,15 @@ public class PostActivity extends AppCompatActivity {
 
         if (toolbarPost != null) toolbarPost.setNavigationOnClickListener(v -> finish());
 
-        btnSelectImage.setOnClickListener(v -> {
-            if (imagePickerLauncher != null) imagePickerLauncher.launch("image/*");
-        });
+        if (btnSelectImage != null) {
+            btnSelectImage.setOnClickListener(v -> {
+                if (imagePickerLauncher != null) imagePickerLauncher.launch("image/*");
+            });
+        }
 
-        edtPickTime.setOnClickListener(v -> showDateTimePicker());
+        if (edtPickTime != null) {
+            edtPickTime.setOnClickListener(v -> showDateTimePicker());
+        }
 
         if (tilLocation != null) {
             tilLocation.setEndIconOnClickListener(v -> {
@@ -132,7 +146,9 @@ public class PostActivity extends AppCompatActivity {
             });
         }
 
-        btnSubmitPost.setOnClickListener(v -> submitPost());
+        if (btnSubmitPost != null) {
+            btnSubmitPost.setOnClickListener(v -> submitPost());
+        }
     }
 
     private void configureUIByType() {
@@ -142,18 +158,14 @@ public class PostActivity extends AppCompatActivity {
         String locationHintString;
         String descHintString;
 
-        if ("LOST".equals(postType)) {
-            // --- LOST: MÀU HỒNG CAM (#F07A7A) ---
+        if ("LOST".equalsIgnoreCase(postType)) {
             toolbarPost.setTitle("Đăng tin: TÌM ĐỒ BỊ MẤT");
             themeColor = Color.parseColor("#F07A7A");
-
             locationHintString = "Bạn làm mất đồ ở đâu?";
             descHintString = "Mô tả chi tiết đồ vật bị mất...";
         } else {
-            // --- FOUND: MÀU XANH LÁ (#59AC77) ---
             toolbarPost.setTitle("Đăng tin: NHẶT ĐƯỢC ĐỒ");
             themeColor = Color.parseColor("#59AC77");
-
             locationHintString = "Bạn nhặt được đồ ở đâu?";
             descHintString = "Mô tả chi tiết đồ vật nhặt được...";
         }
@@ -165,7 +177,9 @@ public class PostActivity extends AppCompatActivity {
         if (btnSelectImage != null) {
             btnSelectImage.setTextColor(themeColor);
             btnSelectImage.setIconTint(ColorStateList.valueOf(themeColor));
-            int paleColor = ("LOST".equals(postType)) ? Color.parseColor("#FFF0F0") : Color.parseColor("#E8F5E9");
+            int paleColor = ("LOST".equalsIgnoreCase(postType))
+                    ? Color.parseColor("#FFF0F0")
+                    : Color.parseColor("#E8F5E9");
             btnSelectImage.setBackgroundTintList(ColorStateList.valueOf(paleColor));
         }
 
@@ -174,10 +188,7 @@ public class PostActivity extends AppCompatActivity {
         applyColorToLayout(tilPickTime, themeColor);
         applyColorToLayout(tilContact, themeColor);
 
-
-        if (tilLocation != null) {
-            tilLocation.setEndIconTintList(ColorStateList.valueOf(themeColor));
-        }
+        if (tilLocation != null) tilLocation.setEndIconTintList(ColorStateList.valueOf(themeColor));
 
         if (tilLocation != null) tilLocation.setHint(locationHintString);
         else if (edtLocation != null) edtLocation.setHint(locationHintString);
@@ -187,9 +198,7 @@ public class PostActivity extends AppCompatActivity {
     }
 
     private void applyColorToLayout(TextInputLayout til, int color) {
-        if (til != null) {
-            til.setBoxStrokeColor(color);
-        }
+        if (til != null) til.setBoxStrokeColor(color);
     }
 
     private void registerImagePicker() {
@@ -211,9 +220,13 @@ public class PostActivity extends AppCompatActivity {
                 String address = result.getData().getStringExtra(PickLocationActivity.EXTRA_ADDRESS);
                 pickedLat = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LAT, 0);
                 pickedLng = result.getData().getDoubleExtra(PickLocationActivity.EXTRA_LNG, 0);
-                if (address != null && !address.trim().isEmpty()) edtLocation.setText(address);
-                else edtLocation.setText(pickedLat + ", " + pickedLng);
-                edtLocation.setError(null);
+
+                if (address != null && !address.trim().isEmpty()) {
+                    if (edtLocation != null) edtLocation.setText(address);
+                } else {
+                    if (edtLocation != null) edtLocation.setText(pickedLat + ", " + pickedLng);
+                }
+                if (edtLocation != null) edtLocation.setError(null);
             }
         });
     }
@@ -222,47 +235,66 @@ public class PostActivity extends AppCompatActivity {
         Calendar calendar = Calendar.getInstance();
         new DatePickerDialog(this, (view, year, month, dayOfMonth) ->
                 new TimePickerDialog(this, (view1, hourOfDay, minute) -> {
-                    String time = dayOfMonth + "/" + (month + 1) + "/" + year + " " + ((hourOfDay < 10) ? "0" + hourOfDay : hourOfDay) + ":" + ((minute < 10) ? "0" + minute : minute);
-                    edtPickTime.setText(time);
+                    String time = dayOfMonth + "/" + (month + 1) + "/" + year + " "
+                            + ((hourOfDay < 10) ? "0" + hourOfDay : hourOfDay)
+                            + ":" + ((minute < 10) ? "0" + minute : minute);
+                    if (edtPickTime != null) edtPickTime.setText(time);
                 }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show(),
-                calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        ).show();
     }
 
     private void handleEditModeIfAny() {
         String mode = getIntent().getStringExtra(EXTRA_MODE);
         isEditMode = MODE_EDIT.equalsIgnoreCase(mode);
         if (!isEditMode) return;
+
         editingPost = readPostFromIntent();
         if (editingPost == null) { finish(); return; }
 
         editingPostId = safe(editingPost.getId());
         postType = safe(editingPost.getPostType());
         if (postType.isEmpty()) postType = "LOST";
+
         configureUIByType();
         fillFormForEdit(editingPost);
+
         if (toolbarPost != null) toolbarPost.setTitle("Chỉnh sửa bài viết");
         if (btnSubmitPost != null) btnSubmitPost.setText("LƯU THAY ĐỔI");
     }
 
     private Post readPostFromIntent() {
         try {
-            if (Build.VERSION.SDK_INT >= 33) return getIntent().getSerializableExtra(EXTRA_POST, Post.class);
-            else return (Post) getIntent().getSerializableExtra(EXTRA_POST);
-        } catch (Exception e) { return null; }
+            if (Build.VERSION.SDK_INT >= 33)
+                return getIntent().getSerializableExtra(EXTRA_POST, Post.class);
+            else
+                return (Post) getIntent().getSerializableExtra(EXTRA_POST);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void fillFormForEdit(@NonNull Post post) {
         if (edtDescription != null) {
-            edtDescription.setText(safe(post.getDescription()));
+            edtDescription.setText(stripTransaction(post.getDescription()));
         }
         if (edtLocation != null) edtLocation.setText(safe(post.getAddress()));
         if (edtContact != null) edtContact.setText(safe(post.getContact()));
-        if (edtPickTime != null) edtPickTime.setText(safe(post.getTimePosted()));
+
+        // ✅ Edit: hiển thị thời gian nhặt/mất (user cung cấp)
+        String lf = safe(post.getLostFoundTime());
+        if (lf.isEmpty()) {
+            // fallback bài cũ: timePosted từng là nhặt/mất
+            lf = safe(post.getTimePosted());
+        }
+        if (edtPickTime != null) edtPickTime.setText(lf.isEmpty() ? "Chọn thời gian" : lf);
 
         pickedLat = post.getLat();
         pickedLng = post.getLng();
-        existingImageBase64 = safe(post.getImageBase64());
 
+        existingImageBase64 = safe(post.getImageBase64());
         if (!existingImageBase64.isEmpty()) {
             Bitmap bmp = ImageUtil.base64ToBitmap(existingImageBase64);
             if (bmp != null && imgPreview != null) {
@@ -272,38 +304,83 @@ public class PostActivity extends AppCompatActivity {
         }
     }
 
+    // ✅ format "thời gian đăng" lúc bấm đăng/lưu
+    private String nowFormatted() {
+        Calendar c = Calendar.getInstance();
+        int day = c.get(Calendar.DAY_OF_MONTH);
+        int month = c.get(Calendar.MONTH) + 1;
+        int year = c.get(Calendar.YEAR);
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        int min = c.get(Calendar.MINUTE);
+
+        String hh = (hour < 10) ? "0" + hour : String.valueOf(hour);
+        String mm = (min < 10) ? "0" + min : String.valueOf(min);
+
+        return day + "/" + month + "/" + year + " " + hh + ":" + mm;
+    }
+
+    // ✅ dọn transaction place trong bài cũ (nếu còn)
+    private String stripTransaction(String desc) {
+        if (desc == null) return "";
+        return desc.replaceAll("\\n?\\(\\s*Giao\\s*dịch\\s*tại\\s*:\\s*[^\\)]*\\)", "").trim();
+    }
+
     private String safe(String s) { return s == null ? "" : s; }
 
     private void submitPost() {
-        String description = edtDescription.getText() != null ? edtDescription.getText().toString().trim() : "";
-        String contact = edtContact.getText() != null ? edtContact.getText().toString().trim() : "";
-        String address = edtLocation.getText() != null ? edtLocation.getText().toString().trim() : "";
-        String timePosted = edtPickTime.getText() != null ? edtPickTime.getText().toString() : "";
+        String description = (edtDescription != null && edtDescription.getText() != null)
+                ? edtDescription.getText().toString().trim()
+                : "";
+        String contact = (edtContact != null && edtContact.getText() != null)
+                ? edtContact.getText().toString().trim()
+                : "";
+        String address = (edtLocation != null && edtLocation.getText() != null)
+                ? edtLocation.getText().toString().trim()
+                : "";
+
+        // ✅ thời gian nhặt/mất do user chọn
+        String lostFoundTime = (edtPickTime != null && edtPickTime.getText() != null)
+                ? edtPickTime.getText().toString()
+                : "";
+
+        // ✅ thời gian đăng bài auto
+        String timePosted = nowFormatted();
+
+        description = stripTransaction(description);
 
         if (description.isEmpty()) {
-            edtDescription.setError("Vui lòng nhập mô tả!");
-            edtDescription.requestFocus();
+            if (edtDescription != null) {
+                edtDescription.setError("Vui lòng nhập mô tả!");
+                edtDescription.requestFocus();
+            }
             return;
         }
 
         if (address.isEmpty()) {
-            edtLocation.setError("Vui lòng nhập địa điểm!");
-            edtLocation.requestFocus();
+            if (edtLocation != null) {
+                edtLocation.setError("Vui lòng nhập địa điểm!");
+                edtLocation.requestFocus();
+            }
             return;
         }
-        if ("Chọn thời gian".equals(timePosted) || timePosted.trim().isEmpty()) {
-            Toast.makeText(this, "Vui lòng chọn thời gian!", Toast.LENGTH_SHORT).show();
+
+        if ("Chọn thời gian".equalsIgnoreCase(lostFoundTime) || lostFoundTime.trim().isEmpty()) {
+            Toast.makeText(this, "Vui lòng chọn thời gian nhặt/mất!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (contact.isEmpty()) {
-            edtContact.setError("Vui lòng nhập thông tin liên hệ!");
-            edtContact.requestFocus();
+            if (edtContact != null) {
+                edtContact.setError("Vui lòng nhập thông tin liên hệ!");
+                edtContact.requestFocus();
+            }
             return;
         }
 
-        btnSubmitPost.setEnabled(false);
-        btnSubmitPost.setText(isEditMode ? "Đang lưu..." : "Đang gửi...");
+        if (btnSubmitPost != null) {
+            btnSubmitPost.setEnabled(false);
+            btnSubmitPost.setText(isEditMode ? "Đang lưu..." : "Đang gửi...");
+        }
 
         String imageBase64 = isEditMode ? existingImageBase64 : "";
         if (selectedImageUri != null) {
@@ -322,13 +399,16 @@ public class PostActivity extends AppCompatActivity {
                 float ratio = (float) width / (float) height;
 
                 if (ratio > 1) {
-                    width = maxSize; height = (int) (width / ratio);
+                    width = maxSize;
+                    height = (int) (width / ratio);
                 } else {
-                    height = maxSize; width = (int) (height * ratio);
+                    height = maxSize;
+                    width = (int) (height * ratio);
                 }
 
                 Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
                 imageBase64 = ImageUtil.bitmapToBase64(scaledBitmap);
+
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Lỗi xử lý ảnh", Toast.LENGTH_SHORT).show();
@@ -337,22 +417,31 @@ public class PostActivity extends AppCompatActivity {
 
         if (databaseReference == null) {
             Toast.makeText(this, "Lỗi kết nối Database", Toast.LENGTH_SHORT).show();
-            btnSubmitPost.setEnabled(true);
+            if (btnSubmitPost != null) btnSubmitPost.setEnabled(true);
             return;
         }
 
-        if (isEditMode) updateExistingPost(description, timePosted, imageBase64, contact, address);
-        else createNewPost(description, timePosted, imageBase64, contact, address);
+        if (isEditMode) {
+            updateExistingPost(description, timePosted, lostFoundTime, imageBase64, contact, address);
+        } else {
+            createNewPost(description, timePosted, lostFoundTime, imageBase64, contact, address);
+        }
     }
 
-    private void createNewPost(String description, String timePosted, String imageBase64, String contact, String address) {
+    private void createNewPost(String description, String timePosted, String lostFoundTime,
+                               String imageBase64, String contact, String address) {
         FirebaseUser currentUser = mAuth.getCurrentUser();
         String userEmail = (currentUser != null) ? currentUser.getEmail() : "Ẩn danh";
         String userId = (currentUser != null) ? currentUser.getUid() : "";
         String postId = databaseReference.push().getKey();
         if (postId == null) return;
 
-        Post newPost = new Post(postId, userId, userEmail, timePosted, description, postType, imageBase64, contact, address);
+        Post newPost = new Post(
+                postId, userId, userEmail,
+                timePosted, lostFoundTime,
+                description, postType, imageBase64, contact, address
+        );
+
         newPost.setLat(pickedLat);
         newPost.setLng(pickedLng);
 
@@ -365,16 +454,24 @@ public class PostActivity extends AppCompatActivity {
                 finish();
             } else {
                 Toast.makeText(PostActivity.this, "Lỗi đăng bài", Toast.LENGTH_SHORT).show();
-                btnSubmitPost.setEnabled(true);
-                btnSubmitPost.setText("ĐĂNG BÀI NGAY");
+                if (btnSubmitPost != null) {
+                    btnSubmitPost.setEnabled(true);
+                    btnSubmitPost.setText("ĐĂNG BÀI NGAY");
+                }
             }
         });
     }
 
-    private void updateExistingPost(String description, String timePosted, String imageBase64, String contact, String address) {
+    private void updateExistingPost(String description, String timePosted, String lostFoundTime,
+                                    String imageBase64, String contact, String address) {
         String userId = safe(editingPost.getUserId());
         String userEmail = safe(editingPost.getUserEmail());
-        Post updated = new Post(editingPostId, userId, userEmail, timePosted, description, postType, imageBase64, contact, address);
+
+        Post updated = new Post(
+                editingPostId, userId, userEmail,
+                timePosted, lostFoundTime,
+                description, postType, imageBase64, contact, address
+        );
 
         updated.setLat(pickedLat);
         updated.setLng(pickedLng);
@@ -386,8 +483,10 @@ public class PostActivity extends AppCompatActivity {
                 finish();
             } else {
                 Toast.makeText(PostActivity.this, "Cập nhật thất bại", Toast.LENGTH_SHORT).show();
-                btnSubmitPost.setEnabled(true);
-                btnSubmitPost.setText("LƯU THAY ĐỔI");
+                if (btnSubmitPost != null) {
+                    btnSubmitPost.setEnabled(true);
+                    btnSubmitPost.setText("LƯU THAY ĐỔI");
+                }
             }
         });
     }

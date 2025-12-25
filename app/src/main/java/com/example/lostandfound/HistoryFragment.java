@@ -92,7 +92,6 @@ public class HistoryFragment extends Fragment {
             return;
         }
 
-        // ✅ Load tất cả posts rồi lọc theo userId/userEmail (bắt luôn dữ liệu cũ)
         listener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -140,7 +139,6 @@ public class HistoryFragment extends Fragment {
             }
         } catch (Exception ignored) {}
 
-        // fallback theo email (Post.getUserEmail() của bạn đã fallback qua userName)
         try {
             String postEmail = p.getUserEmail();
             if (email != null && !email.trim().isEmpty()

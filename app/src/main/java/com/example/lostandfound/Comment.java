@@ -6,13 +6,14 @@ public class Comment {
     public String userId;
     public String userEmail;
     public String content;
-
-    // ✅ Hỗ trợ dữ liệu cũ (nếu DB từng lưu key "text" thay vì "content")
     public String text;
-
     public String imageBase64;
-    public String parentId;   // null/"" = comment, có giá trị = reply
+    public String parentId;
     public long timestamp;
+
+    // (không bắt buộc dùng trong version nested replies)
+    public boolean isViewMore;
+    public int replyCount;
 
     public Comment() {}
 
@@ -26,5 +27,13 @@ public class Comment {
         this.imageBase64 = imageBase64;
         this.parentId = parentId;
         this.timestamp = timestamp;
+    }
+
+    public static Comment viewMoreRow(String parentId, int replyCount) {
+        Comment c = new Comment();
+        c.isViewMore = true;
+        c.parentId = parentId;
+        c.replyCount = replyCount;
+        return c;
     }
 }

@@ -78,29 +78,21 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         h.rvReplies.setVisibility(View.GONE);
         h.tvViewReplies.setOnClickListener(null);
 
+        // username bold + content
         String name = safe(c.userEmail);
-        if (name.isEmpty()) name = "Người dùng ẩn danh";
-
-        if (h.tvName != null) {
-            h.tvName.setText(name);
-            h.tvName.setTypeface(null, Typeface.BOLD); // In đậm tên
-        }
-
         String msg = pickMessage(c);
         if ((msg == null || msg.trim().isEmpty()) && c.imageBase64 != null && !c.imageBase64.isEmpty()) {
             msg = "🖼 Ảnh";
         }
-        h.tvContent.setText(safe(msg));
 
-        if (name.contains("@")) {
-            name = name.substring(0, name.indexOf("@"));
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        sb.append(name).append("  ");
+        if (!name.isEmpty()) {
+            sb.setSpan(new StyleSpan(Typeface.BOLD),
+                    0, name.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        h.tvName.setText(name);
-
-        if ((msg == null || msg.trim().isEmpty()) && c.imageBase64 != null && !c.imageBase64.isEmpty()) {
-            msg = "🖼 Đã gửi một ảnh";
-        }
-        h.tvContent.setText(safe(msg));
+        sb.append(safe(msg));
+        h.tvContent.setText(sb);
 
         // time
         String time = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
@@ -132,7 +124,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
                 onReplyTargetClick.onReply(cid, targetUid, targetName);
             }
         });
-
 
         // avatar
         bindAvatar(h, c.userId);
@@ -174,14 +165,10 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
                 }
 
                 h.tvViewReplies.setOnClickListener(v -> {
-                    int currentPosition = h.getAdapterPosition();
-                    if (currentPosition == RecyclerView.NO_POSITION) return;
-
                     if (expanded.contains(commentId)) expanded.remove(commentId);
                     else expanded.add(commentId);
-                    notifyItemChanged(currentPosition);
+                    notifyItemChanged(position);
                 });
-
             }
 
             @Override public void onCancelled(@NonNull DatabaseError error) {}
@@ -292,7 +279,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
         LinearLayout root;
         ImageView imgAvatar, imgComment;
         TextView tvContent, tvTime, btnReply;
-        TextView tvName;
         TextView tvViewReplies;
         RecyclerView rvReplies;
 
@@ -302,7 +288,6 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.VH> {
             imgAvatar = itemView.findViewById(R.id.imgAvatar);
             tvContent = itemView.findViewById(R.id.tvContent);
             tvTime = itemView.findViewById(R.id.tvTime);
-            tvName = itemView.findViewById(R.id.tvName);
             imgComment = itemView.findViewById(R.id.imgComment);
             btnReply = itemView.findViewById(R.id.btnReply);
             tvViewReplies = itemView.findViewById(R.id.tvViewReplies);

@@ -43,12 +43,8 @@ public class SignUpActivity extends AppCompatActivity {
 
         btnCreateAccount.setOnClickListener(v->createAccount());
 
-        // 3. Chuyển về màn hình Login
         tvLogin.setOnClickListener(v -> {
-            finish(); // Đóng màn hình Sign Up để quay lại Login (nếu trước đó từ Login sang)
-            // Hoặc dùng Intent để mở mới:
-            // Intent intent = new Intent(SignUpActivity.this, LoginActivity.class);
-            // startActivity(intent);
+            finish();
         });
     }
 
@@ -83,11 +79,9 @@ public class SignUpActivity extends AppCompatActivity {
         }
 
 
-        // Tạo tài khoản
         mAuth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this, task -> {
                 if (task.isSuccessful()) {
-                    // Tạo Auth thành công
                     FirebaseUser user = mAuth.getCurrentUser();
                     if (user != null) {
                         String userId = user.getUid();
@@ -102,7 +96,7 @@ public class SignUpActivity extends AppCompatActivity {
                                         Intent intent = new Intent(SignUpActivity.this, HomeActivity.class);
                                         intent.addFlags (Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                                         startActivity(intent);
-                                        finish(); // Đóng SignUpActivity để quay lại LoginActivity
+                                        finish();
                                     } else {
                                         Toast.makeText(SignUpActivity.this, "Failed to save user data", Toast.LENGTH_SHORT).show();
                                     }

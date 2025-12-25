@@ -68,7 +68,6 @@ public class NotificationFragment extends Fragment {
         usersRef = db.getReference("users");
 
         adapter = new NotificationAdapter(requireContext(), list, usersRef, item -> {
-            // mark read
             if (notifyRef != null && item.id != null && !item.id.isEmpty()) {
                 notifyRef.child(item.id).child("isRead").setValue(true);
             }

@@ -19,7 +19,7 @@
         android:layout_marginBottom="120dp"
         app:backgroundTint="#F07A7A"
         app:srcCompat="@android:drawable/ic_menu_mylocation"
-        app:tint="@android:color/white" />
+        app:backgroundTint="@android:color/white" />
 
     <LinearLayout
         android:layout_width="match_parent"

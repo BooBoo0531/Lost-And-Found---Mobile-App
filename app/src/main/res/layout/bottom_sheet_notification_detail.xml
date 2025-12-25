@@ -101,33 +101,9 @@
             android:layout_marginTop="6dp"
             android:layout_marginBottom="6dp" />
 
-        <Button
-            android:id="@+id/btnOpenComments"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Xem bình luận"
-            android:backgroundTint="#F07A7A"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="12dp" />
-
         <include
             android:id="@+id/includePostPreview"
             layout="@layout/item_post_map" />
-
-        <TextView
-            android:id="@+id/tvLostFoundTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Thời gian: ..."
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvCommentCountInline"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0 bình luận"
-            android:layout_marginTop="4dp"
-            android:textColor="#F07A7A" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
